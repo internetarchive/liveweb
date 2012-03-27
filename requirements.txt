@@ -1,0 +1,4 @@
+pytest
+uwsgi
+git+git://github.com/internetarchive/warc.git#egg=warc
+git+git://github.com/anandology/gzip2.git#egg=gzip2
