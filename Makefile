@@ -1,6 +1,10 @@
 
 VENV=.
 
+# host:port of the liveweb proxy. 
+# This is used by the wayback.
+LIVEWEB=localhost:9099
+
 UWSGI=$(VENV)/bin/uwsgi -H$(VENV)
 
 run:
@@ -16,4 +20,4 @@ test:
 	$(VENV)/bin/py.test liveweb/
     
 wayback:
-	$(UWSGI) --http :9000 --wsgi wayback
+	$(UWSGI) --http :9000 --wsgi liveweb.tools.wayback --pyargv $(LIVEWEB)
