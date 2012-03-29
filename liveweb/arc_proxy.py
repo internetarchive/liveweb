@@ -14,10 +14,17 @@ def get(url):
     """
     u = urllib.urlopen(url)
     status_line = "HTTP/1.1 200 OK\r\n"
-    headers = str(u.headers)
     body = u.read()
+    
+    # urllib decodes the chunked transfer-encoded.
+    # removing the header and adding content-length as a work-around.
+    if 'transfer-encoding' in u.headers:
+        del u.headers['transfer-encoding']
+    u.headers['content-length'] = str(len(body))
+    
+    headers = str(u.headers)
     payload = status_line + headers + "\r\n" + body
-
+    
     content_type = u.headers.get('content-type',"application/octet-stream").split(';')[0]
 
     headers = dict(url  = url,
