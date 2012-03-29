@@ -13,10 +13,10 @@ def get(url):
     instead of downloading again.
     """
     u = urllib.urlopen(url)
-    status_line = "HTTP/1.1 200 OK\n"
+    status_line = "HTTP/1.1 200 OK\r\n"
     headers = str(u.headers)
     body = u.read()
-    payload = status_line + headers + body
+    payload = status_line + headers + "\r\n" + body
 
     content_type = u.headers.get('content-type',"application/octet-stream").split(';')[0]
 
