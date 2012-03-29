@@ -13,8 +13,6 @@ import cgi
 from StringIO import StringIO
 
 from BeautifulSoup import BeautifulSoup, Tag, NavigableString
-from genshi.input import HTML
-from genshi.filters import Transformer
 
 import warc
 
