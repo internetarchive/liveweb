@@ -5,6 +5,7 @@ import datetime
 import fcntl
 import gzip
 import httplib
+import logging
 import os
 import socket
 import struct
@@ -13,7 +14,7 @@ import urlparse
 
 
 from warc import arc
-from . import filetools
+import filetools
 
 STORAGE_BASE = "/tmp/records"
 
@@ -72,9 +73,19 @@ def decompose_url(url):
     """
     Breaks URL into server:port and the requested resource
 
+    TODO: This logic might belong in the web app rather than the
+    TODO: arc_proxy module. It'll have to be done for WARCs too.
     """
     scheme, netloc, path, query, fragment, = urlparse.urlsplit(url)
+    if not netloc: # This will happen if there are issues with URLs like www.google.com
+        scheme, netloc, path, query, fragment, = urlparse.urlsplit("http://"+url)
+        
     resource = urlparse.urlunsplit(["","", path, query, fragment]) #TODO: This might alter the URL
+    logging.debug("Scheme : %s\nNetloc : %s\nPath : %s\nQuery : %s\nFragment : %s\n", scheme, netloc, path, query, fragment)
+    logging.debug("Recomposed resource is '%s'", resource)
+    if not resource:
+        logging.debug("Resource string is empty. Changing it to /")
+        resource = "/"
     return netloc, resource
 
 def retrieve_url(url):
@@ -89,6 +100,7 @@ def retrieve_url(url):
 
     """
     server, resource = decompose_url(url)
+    logging.debug("Attempting to fetch '%s' from '%s'", resource, server)
 
     try:
         conn = httplib.HTTPConnection(server)
@@ -123,6 +135,8 @@ def get(url):
     else:
         size, arc_file_name = live_fetch(url)
         url_cache[url] = (size, arc_file_name)
+
+    logging.debug("Returning contents of %s", arc_file_name)
 
     return (size, open(arc_file_name, "rb"))
     

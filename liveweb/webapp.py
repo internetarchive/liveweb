@@ -1,9 +1,14 @@
 """The webapp for arc proxy.
 """
 
-import arc_proxy
-import gzip
+
 from cStringIO import StringIO
+import gzip
+import logging
+
+import arc_proxy
+
+logging.basicConfig(level = logging.DEBUG)
 
 class application:
     """WSGI application for liveweb proxy.
@@ -14,8 +19,8 @@ class application:
         
     def parse_request(self):
         self.method = self.environ['REQUEST_METHOD']
-        self.url = self.environ['PATH_INFO']
-        
+        self.url = self.environ['REQUEST_URI'] #TODO: Is this a valid environment variable always?
+
     def __iter__(self):
         self.parse_request()
         
@@ -23,14 +28,10 @@ class application:
         response_headers = [
             ('Content-type', 'application/x-arc-record')
         ]
-        
-        record = arc_proxy.get(self.url)
+        logging.debug("Fetching and archiving %s",self.url)
+
+        size, data = arc_proxy.get(self.url)
         self.start_response(status, response_headers)
         
-        f = StringIO()
-        
-        gz = gzip.GzipFile(fileobj=f, mode="wb")
-        record.write_to(gz, version=1)
-        gz.close()
-        
-        yield f.getvalue()
+
+        return data

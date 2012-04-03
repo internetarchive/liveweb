@@ -136,10 +136,8 @@ class application(wsgiapp):
         content = conn.getresponse().read()
 
         gz = gzip.GzipFile(fileobj=StringIO(content), mode="rb")
+        record = warc.ARCRecord.from_string(gz.read(), version = 1)
 
-        f = warc.ARCFile(fileobj=gz, version=1)
-        f.header_read = True
-        record = f.read_record()
         return record
         
     def rewrite_page(self, base_url, content):
