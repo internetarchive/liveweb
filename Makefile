@@ -1,5 +1,5 @@
 
-VENV=.
+VENV=${VIRTUAL_ENV}
 
 # host:port of the liveweb proxy. 
 # This is used by the wayback.
@@ -8,7 +8,7 @@ LIVEWEB=localhost:9099
 UWSGI=$(VENV)/bin/uwsgi -H$(VENV)
 
 run:
-	$(UWSGI) --http :8080 --wsgi liveweb
+	$(UWSGI) --http ${LIVEWEB} --wsgi liveweb
 
 venv:
 	virtualenv --no-site-packages $(VENV)
