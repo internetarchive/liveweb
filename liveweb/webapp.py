@@ -30,8 +30,6 @@ class application:
         ]
         logging.debug("Fetching and archiving %s",self.url)
 
-        size, data = arc_proxy.get(self.url)
+        size, fileobj = arc_proxy.get(self.url)
         self.start_response(status, response_headers)
-        
-
-        return data
+        return iter(fileobj)
