@@ -13,12 +13,13 @@ VENV=$(VIRTUAL_ENV)
 
 # host:port of the liveweb proxy. 
 # This is used by the wayback.
-LIVEWEB=localhost:9099
+LIVEWEB_ADDRESS=localhost:7070
+WAYBACK_ADDRESS=:8080
 
 UWSGI=$(VENV)/bin/uwsgi -H$(VENV)
 
 run:
-	$(UWSGI) --http ${LIVEWEB} --wsgi liveweb
+	$(UWSGI) --http ${LIVEWEB_ADDRESS} --wsgi liveweb
 
 venv:
 	virtualenv --no-site-packages $(VENV)
@@ -30,4 +31,5 @@ test:
 	$(VENV)/bin/py.test liveweb/
     
 wayback:
-	$(UWSGI) --http :9000 --wsgi liveweb.tools.wayback --pyargv $(LIVEWEB)
+	$(UWSGI) --http ${WAYBACK_ADDRESS} --wsgi liveweb.tools.wayback --pyargv $(LIVEWEB_ADDRESS)
+
