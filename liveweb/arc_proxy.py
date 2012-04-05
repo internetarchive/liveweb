@@ -96,7 +96,8 @@ def retrieve_url(url):
     This uses thes spyfile class to get the actual transaction without
     any modifications made by by httplib.
 
-    Returns the HTTPResponse Object and the actual data sent back on the line. 
+    Returns the HTTPResponse Object, the actual data sent back on the
+    line and the ip address of the remote host
 
     """
     server, resource = decompose_url(url)
@@ -118,7 +119,7 @@ def retrieve_url(url):
     response.read() 
     line_data = fp.buf.getvalue() # TODO: Stream this data back instead of this one shot read.
     
-    return response, line_data
+    return response, line_data, conn.sock.getpeername()[0]
 
 def get(url):
     """Returns the content of the URL as an ARC record.
@@ -144,12 +145,12 @@ def live_fetch(url):
     """Downloads the content of the URL from web and returns it as an ARC 
     record.
     """
-    http_response, payload = retrieve_url(url)
+    http_response, payload, remote_ip_address = retrieve_url(url)
     headers = http_response.getheaders()
     content_type = http_response.getheader('content-type',"application/octet-stream").split(';')[0]
 
     headers = dict(url  = url,
-                   ip_address = get_ip_address("lo"), #TODO: Use eth0 but select dynamically.
+                   ip_address = remote_ip_address,
                    date = datetime.datetime.utcnow(),
                    content_type = content_type,
                    length = len(payload)
