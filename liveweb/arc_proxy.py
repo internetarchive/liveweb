@@ -11,6 +11,8 @@ import socket
 import struct
 import urllib
 import urlparse
+import random
+import string
 
 
 from warc import arc
@@ -50,14 +52,16 @@ def get_storage_location(url):
     
     # For the time being, just return the storage_base
     return STORAGE_BASE
-
+    
+def random_string(length):
+    return "".join(random.choice(string.letters) for i in range(length))
 
 def write_arc_file(url, arc_record):
     location = get_storage_location(url)
     # TODO: Need to understand what this format is.
     # alexa-web-20110904174118-00038/51_23_20110804161301_crawl103.arc.gz
     now = datetime.datetime.now()
-    arc_file_name = location + "/liveweb-%s.arc.gz"%now.strftime("%Y%m%d%H%M%S")
+    arc_file_name = location + "/liveweb-%s-%s.arc.gz" % (now.strftime("%Y%m%d%H%M%S"), random_string(5))
     
     outfile = gzip.GzipFile(arc_file_name + ".tmp", "wb")
     arc_record.write_to(outfile)
