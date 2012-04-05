@@ -21,6 +21,11 @@ class application:
         self.method = self.environ['REQUEST_METHOD']
         self.url = self.environ['REQUEST_URI'] #TODO: Is this a valid environment variable always?
 
+        # Allow accessing the proxy using regular URL so that we can use
+        # tools like ab.
+        if self.url.startswith("/_web/"):
+            self.url = self.url[len("/_web/"):]
+
     def __iter__(self):
         self.parse_request()
         
