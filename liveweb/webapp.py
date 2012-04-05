@@ -27,14 +27,17 @@ class application:
             self.url = self.url[len("/_web/"):]
 
     def __iter__(self):
-        self.parse_request()
-        
-        status = '200 OK'
-        response_headers = [
-            ('Content-type', 'application/x-arc-record')
-        ]
-        logging.debug("Fetching and archiving %s",self.url)
+        try:
+            self.parse_request()
+            
+            status = '200 OK'
+            response_headers = [
+                ('Content-type', 'application/x-arc-record')
+            ]
+            logging.debug("Fetching and archiving %s",self.url)
 
-        size, fileobj = arc_proxy.get(self.url)
-        self.start_response(status, response_headers)
-        return iter(fileobj)
+            size, fileobj = arc_proxy.get(self.url)
+            self.start_response(status, response_headers)
+            return iter(fileobj)
+        except:
+            logging.error("Internal Error", exc_info=True)
