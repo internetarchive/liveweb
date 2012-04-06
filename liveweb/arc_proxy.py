@@ -24,7 +24,7 @@ def get_ip_address(ifname):
     """Return the IP address of the requested interface.
     This was obtained from 
 
-    http://code.activestate.com/recipes/439094-get-the-ip-address-associated-with-a-network-inter/
+    http://code.activestate.com/recipes/439094-get-the-ipn-address-associated-with-a-network-inter/
     """
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     return socket.inet_ntoa(fcntl.ioctl(
@@ -53,7 +53,8 @@ def write_arc_file(url, arc_record):
     now = datetime.datetime.now()
     arc_file_name = location + "/liveweb-%s-%s.arc.gz" % (now.strftime("%Y%m%d%H%M%S"), random_string(5))
     
-    outfile = gzip.GzipFile(arc_file_name + ".tmp", "wb")
+    fp = open(arc_file_name + ".tmp", "wb")
+    outfile = gzip.GzipFile(filename = "", fileobj = fp)
     arc_record.write_to(outfile)
     outfile.close()
     os.rename(arc_file_name + ".tmp", arc_file_name)
@@ -70,6 +71,7 @@ def decompose_url(url):
     TODO: This logic might belong in the web app rather than the
     TODO: arc_proxy module. It'll have to be done for WARCs too.
     """
+
     scheme, netloc, path, query, fragment, = urlparse.urlsplit(url)
     if not netloc: # This will happen if there are issues with URLs like www.google.com
         scheme, netloc, path, query, fragment, = urlparse.urlsplit("http://"+url)
@@ -82,16 +84,13 @@ def decompose_url(url):
         resource = "/"
     return netloc, resource
 
-def retrieve_url(url):
+def establish_connection(url):
     """
-    Fetches the given url using an HTTP GET and returns the complete
-    HTTP transaction.
+    Establishes an HTTP connection to the given URL and returns the
+    HTTPResponse Object.
 
     This uses thes spyfile class to get the actual transaction without
     any modifications made by by httplib.
-
-    Returns the HTTPResponse Object, the actual data sent back on the
-    line and the ip address of the remote host
 
     """
     server, resource = decompose_url(url)
@@ -110,16 +109,8 @@ def retrieve_url(url):
         conn.request("GET", resource, headers=headers)
     except socket.gaierror:
         raise ConnectionFailure()
-    
-    # In some cases conn.sock is becoming None after reading the data.
-    # Getting the remoteaddr early to avoid trouble.
-    remoteaddr = conn.sock.getpeername()[0]
-        
-    response = conn.getresponse()
-    fp = response.fp
-    response.read() 
-    line_data = fp.buf.getvalue() # TODO: Stream this data back instead of this one shot read.
-    return response, line_data, remoteaddr
+
+    return conn
 
 def get(url):
     """Returns the content of the URL as an ARC record.
@@ -156,18 +147,41 @@ def get(url):
 def live_fetch(url):
     """Downloads the content of the URL from web and returns it as an ARC 
     record.
+
+    This will attempt to donwload the file into memory and write it to
+    disk. 
+
+    However, if it finds that the file is larger than 10MB, it will
+    resort to streaming the data straight onto disk in a temporary
+    file and then process the arc file at the end. This will require
+    double the I/O but will be sufficiently rare to justify this
+    approach.
+    
+    Cf. http://www.optimizationweek.com/reviews/average-web-page/
+
+
     """
-    http_response, payload, remote_ip_address = retrieve_url(url)
-    headers = http_response.getheaders()
-    content_type = http_response.getheader('content-type',"application/octet-stream").split(';')[0]
+    conn = establish_connection(url)
+    response = conn.getresponse()
+    response.read(10 * 1024) # Read out 10 MB
 
-    headers = dict(url  = url,
-                   ip_address = remote_ip_address,
-                   date = datetime.datetime.utcnow(),
-                   content_type = content_type,
-                   length = len(payload)
-                   )
-    arc_record = arc.ARCRecord(headers = headers, payload = payload)
+    initial_data = response.fp.buf.getvalue()
+    data_length = len(initial_data)
+    
+    print initial_data
+    if data_length < 10 * 1024 * 1024: # We've read out the whole data
+        # Create regular arc file here
+        arc_record = arc.ARCRecord(headers = dict(url = url,
+                                                  date = datetime.datetime.now(),
+                                                  content_type = response.getheader("content-type","application/octet-stream"),
+                                                  length = data_length),
+                                   payload = initial_data)
+        size, name = write_arc_file(url, arc_record)
+    else:
+        # Write out payload data to separate file
+        # Then get it's size and recreate arc file.
+        pass
+        
+    
+    return size, name
 
-    size, file_name = write_arc_file(url, arc_record)
-    return size, file_name
