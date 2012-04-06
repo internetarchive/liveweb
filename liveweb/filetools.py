@@ -1,19 +1,35 @@
 from cStringIO import StringIO
 import httplib
 
-def spy(fileobj):
+def spy(fileobj, spyobj = None):
     """Returns a new file wrapper the records the contents of a file
     as someone is reading from it.
     """
-    return SpyFile(fileobj)
+    return SpyFile(fileobj, spyobj)
 
 class SpyFile:
     """File wrapper to record the contents of a file as someone is
     reading from it.
+
+    If the "spy" parameter is passed, it will be the stream to which
+    the read data is written.
+
+    SpyFile works like a "tee"
+                          
+                        -------------
+     Actual client <--- SpyFileObject <--- Data Source
+                        ____     ____
+                            \ | /    
+                              |      
+                              V      
+                             spy     
+                         (spy object) 
+    
+                              
     """
-    def __init__(self, fileobj):
+    def __init__(self, fileobj, spy = None):
         self.fileobj = fileobj
-        self.buf = StringIO()
+        self.buf = spy or StringIO()
 
     def read(self, *a, **kw):
         text = self.fileobj.read(*a, **kw)
@@ -27,6 +43,12 @@ class SpyFile:
     
     def close(self):
         self.fileobj.close()
+
+    def change_spy(self, fileobj):
+        "Changes the file which recives the spied upon data to fileobj"
+        self.buf.flush()
+        self.buf.close()
+        self.buf = fileobj
     
         
 
