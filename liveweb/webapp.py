@@ -18,7 +18,13 @@ class application:
         
     def parse_request(self):
         self.method = self.environ['REQUEST_METHOD']
-        self.url = self.environ['REQUEST_URI'] #TODO: Is this a valid environment variable always?
+        print self.environ
+        if 'REQUEST_URI' in self.environ: # This is for uwsgi
+            self.url = self.environ['REQUEST_URI'] #TODO: Is this a valid environment variable always?
+        if 'RAW_URI' in self.environ: # This is for gunicorn
+            self.url = self.environ['RAW_URI'] #TODO: Is this a valid environment variable always?
+            
+        
 
         # Allow accessing the proxy using regular URL so that we can use
         # tools like ab.
