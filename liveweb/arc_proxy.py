@@ -7,6 +7,7 @@ import gzip
 import httplib
 import logging
 import os
+import random
 import socket
 import struct
 import urllib
@@ -31,16 +32,18 @@ def get_storage_location(url):
 def random_string(length):
     return "".join(random.choice(string.letters) for i in range(length))
 
-def write_arc_file(url, arc_record):
-    # XXX-Anand: Why is url passed as argument? 
-    # Can't we get it from the arc_record
-    
+def get_arc_file_name(url):
     location = get_storage_location(url)
+    now = datetime.datetime.now()
+
+    arc_file_name = location + "/liveweb-%s-%s.arc.gz" % (now.strftime("%Y%m%d%H%M%S"), random_string(5))
+
+    return arc_file_name
+
+def write_arc_file(arc_file_name, arc_record):
     # TODO: Need to understand what this format is.
     # alexa-web-20110904174118-00038/51_23_20110804161301_crawl103.arc.gz
-    now = datetime.datetime.now()
-    arc_file_name = location + "/liveweb-%s-%s.arc.gz" % (now.strftime("%Y%m%d%H%M%S"), random_string(5))
-    
+
     fp = open(arc_file_name + ".tmp", "wb")
     outfile = gzip.GzipFile(filename = "", fileobj = fp)
     arc_record.write_to(outfile)
@@ -49,7 +52,7 @@ def write_arc_file(url, arc_record):
     
     file_size = os.stat(arc_file_name).st_size
 
-    return file_size, arc_file_name
+    return file_size
 
 
 def decompose_url(url):
@@ -149,27 +152,71 @@ def live_fetch(url):
 
 
     """
+    initial_chunk_size = 10 * 1024 * 1024 # 10 MB
+
     conn = establish_connection(url)
     response = conn.getresponse()
-    response.read(10 * 1024) # Read out 10 MB
+    remote_ip = conn.sock.getpeername()[0]
+    spyfile = response.fp
+    response.read(initial_chunk_size)
 
-    initial_data = response.fp.buf.getvalue()
+
+    initial_data = spyfile.buf.getvalue()
     data_length = len(initial_data)
-    
-    print initial_data
-    if data_length < 10 * 1024 * 1024: # We've read out the whole data
+
+    arc_file_name = get_arc_file_name(url)
+    print data_length
+    print initial_chunk_size
+
+    if data_length < initial_chunk_size: # We've read out the whole data
         # Create regular arc file here
         arc_record = arc.ARCRecord(headers = dict(url = url,
-                                                  date = datetime.datetime.now(),
+                                                  date = datetime.datetime.utcnow(),
                                                   content_type = response.getheader("content-type","application/octet-stream"),
+                                                  ip_address = remote_ip,
                                                   length = data_length),
                                    payload = initial_data)
-        size, name = write_arc_file(url, arc_record)
-    else:
-        # Write out payload data to separate file
-        # Then get it's size and recreate arc file.
-        pass
-        
-    
-    return size, name
 
+        size = write_arc_file(arc_file_name, arc_record)
+    else:
+        # TODO: This block probably needs to be moved off to multiple functions
+        payload_file_name = arc_file_name + ".tmp.payload"
+        payload_file = open(payload_file_name, "wb")
+        
+        data_length = response.getheader("content-length","XXX") # We won't have the size for streaming data.
+
+        # First write out the header (as much we have anyway)
+        arc_header = arc.ARCHeader(url = url,
+                                   date = datetime.datetime.utcnow(),
+                                   content_type = response.getheader("content-type", "application/octet-stream"),
+                                   ip_address = remote_ip,
+                                   length = data_length)
+        
+        # Now deal with the payload
+        # Now first write the payload which we've already read into the file.
+        payload_file.write(initial_data)
+        # Then stream in the rest of the payload by changing the spy file
+        spyfile.change_spy(payload_file)
+        response.read()
+        payload_file.close()
+
+        payload_size = os.stat(payload_file_name).st_size
+
+        # Fix the content-length in the header if necessary
+        if arc_header['length'] == "XXX":
+            arc_header['length'] = payload_size
+
+        # Create the actual file
+        f = open(arc_file_name + ".tmp", "wb")
+        arc_file = gzip.GzipFile(filename = "" , fileobj = f)
+        payload = open(payload_file_name, "rb") #Reopen for read
+        arc_record = arc.ARCRecord(header = arc_header, payload = payload, version = 1)
+        arc_record.write_to(arc_file)
+        arc_file.close()
+
+        # os.unlink(payload_file_name)
+        os.rename(arc_file_name + ".tmp", arc_file_name)
+        
+        size = os.stat(arc_file_name).st_size
+        
+    return size, arc_file_name
