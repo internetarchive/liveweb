@@ -20,18 +20,6 @@ from . import filetools
 from .errors import BadURL, ConnectionFailure
 from . import config
 
-def get_ip_address(ifname):
-    """Return the IP address of the requested interface.
-    This was obtained from 
-
-    http://code.activestate.com/recipes/439094-get-the-ipn-address-associated-with-a-network-inter/
-    """
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    return socket.inet_ntoa(fcntl.ioctl(
-        s.fileno(),
-        0x8915,  # SIOCGIFADDR
-        struct.pack('256s', ifname[:15])
-    )[20:24])
 
 def get_storage_location(url):
     """This function is to be used to spread the record writes across
