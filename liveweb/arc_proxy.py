@@ -19,6 +19,7 @@ from warc import arc
 import filetools
 
 STORAGE_BASE = "/tmp/records"
+USER_AGENT = "ia_archiver(OS-Wayback)"
 
 url_cache = {}
 
@@ -113,8 +114,11 @@ def retrieve_url(url):
         raise BadURL("'%s' is an invalid URL", url)
 
     conn.response_class = filetools.SpyHTTPResponse
+    headers = {
+        "User-Agent": USER_AGENT
+    }
     try:
-        conn.request("GET", resource)
+        conn.request("GET", resource, headers=headers)
     except socket.gaierror:
         raise
 
