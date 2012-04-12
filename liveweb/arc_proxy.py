@@ -120,7 +120,7 @@ def retrieve_url(url):
     try:
         conn.request("GET", resource, headers=headers)
     except socket.gaierror:
-        raise
+        raise ConnectionFailure()
 
     response = conn.getresponse()
     fp = response.fp
