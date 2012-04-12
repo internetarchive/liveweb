@@ -25,6 +25,12 @@ class application:
         # tools like ab.
         if self.url.startswith("/_web/"):
             self.url = self.url[len("/_web/"):]
+            
+        # Since this is a proxy, the URL is always of the form http://hostname/path
+        # nginx is stripping the http://host from the passed URL and just passing the /path here.
+        # This is a work-around for that issue.
+        if self.url.startswith("/"):
+            self.url = "http://" + self.environ['HTTP_HOST'] + self.url
 
     def __iter__(self):
         try:
