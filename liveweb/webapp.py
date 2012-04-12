@@ -7,6 +7,7 @@ import logging
 
 from . import arc_proxy
 from . import errors
+logging.basicConfig(level = logging.DEBUG)
 
 
 class application:
@@ -18,7 +19,6 @@ class application:
         
     def parse_request(self):
         self.method = self.environ['REQUEST_METHOD']
-        print self.environ
         if 'REQUEST_URI' in self.environ: # This is for uwsgi
             self.url = self.environ['REQUEST_URI'] #TODO: Is this a valid environment variable always?
         if 'RAW_URI' in self.environ: # This is for gunicorn
