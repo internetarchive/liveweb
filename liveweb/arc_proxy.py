@@ -16,22 +16,13 @@ import string
 
 
 from warc import arc
-import filetools
+from . import filetools
+from .errors import BadURL, ConnectionFailure
 
 STORAGE_BASE = "/tmp/records"
 USER_AGENT = "ia_archiver(OS-Wayback)"
 
 url_cache = {}
-
-class ArcProxyException(Exception): pass
-
-class BadURL(ArcProxyException): 
-    "Raised if the given URL was malformed in some way"
-    pass
-
-class ConnectionFailure(ArcProxyException, IOError):
-    "Raised if a connection to the remote URL couldn't be established or was interrupted"
-    pass
 
 
 def get_ip_address(ifname):

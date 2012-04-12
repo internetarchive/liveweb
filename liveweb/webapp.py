@@ -6,7 +6,8 @@ from cStringIO import StringIO
 import gzip
 import logging
 
-import arc_proxy
+from . import arc_proxy
+from . import errors
 
 logging.basicConfig(level = logging.DEBUG)
 
@@ -37,10 +38,10 @@ class application:
             self.parse_request()
             size, fileobj = arc_proxy.get(self.url)
             return self.success(size, fileobj)
-        except arc_proxy.BadURL:
+        except errors.BadURL:
             logging.error("bad url %r", self.url)
             return self.error("400 Bad Request")
-        except arc_proxy.ConnectionFailure:
+        except errors.ConnectionFailure:
             logging.error("Connection failure", exc_info=True)
             return self.error("502 Bad Gateway")
         except:
