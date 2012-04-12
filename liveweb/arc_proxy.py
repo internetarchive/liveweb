@@ -134,6 +134,7 @@ def get(url):
         cache.expire(url, config.expire_time)
         
     return len(content), content
+
     
 def live_fetch(url):
     """Downloads the content of the URL from web and returns it as an ARC 
@@ -165,8 +166,6 @@ def live_fetch(url):
     data_length = len(initial_data)
 
     arc_file_name = get_arc_file_name(url)
-    print data_length
-    print initial_chunk_size
 
     if data_length < initial_chunk_size: # We've read out the whole data
         # Create regular arc file here
@@ -178,6 +177,10 @@ def live_fetch(url):
                                    payload = initial_data)
 
         size = write_arc_file(arc_file_name, arc_record)
+        # This is an optimisation to return the in memory payload so
+        # that we don't have to read it off the disk again.
+        spyfile.buf.seek(0)
+        arc_file_handle = spyfile.buf
     else:
         # TODO: This block probably needs to be moved off to multiple functions
         payload_file_name = arc_file_name + ".tmp.payload"
@@ -210,13 +213,15 @@ def live_fetch(url):
         f = open(arc_file_name + ".tmp", "wb")
         arc_file = gzip.GzipFile(filename = "" , fileobj = f)
         payload = open(payload_file_name, "rb") #Reopen for read
-        arc_record = arc.ARCRecord(header = arc_header, payload = payload, version = 1)
+        # TODO: Write one file into another?
+        arc_record = arc.ARCRecord(header = arc_header, payload = payload, version = 1) 
         arc_record.write_to(arc_file)
         arc_file.close()
 
-        # os.unlink(payload_file_name)
+        os.unlink(payload_file_name)
         os.rename(arc_file_name + ".tmp", arc_file_name)
         
         size = os.stat(arc_file_name).st_size
+        arc_file_handle = open(arc_file_name, "rb")
         
-    return size, arc_file_name
+    return size, arc_file_handle, arc_file_name
