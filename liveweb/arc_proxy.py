@@ -14,6 +14,8 @@ import urllib
 import urlparse
 import random
 import string
+from cStringIO import StringIO
+
 import redis
 
 from warc import arc
@@ -174,13 +176,24 @@ def live_fetch(url):
                                                   content_type = response.getheader("content-type","application/octet-stream"),
                                                   ip_address = remote_ip,
                                                   length = data_length),
-                                   payload = initial_data)
+                                   payload = initial_data,
+                                   version = 1)
 
         size = write_arc_file(arc_file_name, arc_record)
         # This is an optimisation to return the in memory payload so
-        # that we don't have to read it off the disk again.
+        # that we don't have to read it off the disk again.  This
+        # takes the arc_record we've created, writes it to a StringIO
+        # (compressed_stream) via a GzipFile so that it's compressed
+        # and then returns a handle to compressed_stream.
         spyfile.buf.seek(0)
-        arc_file_handle = spyfile.buf
+        compressed_stream = StringIO()
+
+        compressed_file = gzip.GzipFile(fileobj = compressed_stream, mode = "w")
+        arc_record.write_to(compressed_file)
+        compressed_file.close()
+
+        compressed_stream.seek(0)
+        arc_file_handle = compressed_stream
     else:
         # TODO: This block probably needs to be moved off to multiple functions
         payload_file_name = arc_file_name + ".tmp.payload"
