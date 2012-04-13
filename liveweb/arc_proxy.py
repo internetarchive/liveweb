@@ -161,9 +161,8 @@ def live_fetch(url):
 
     try:
         conn = establish_connection(url)
-        
+        remote_ip = conn.sock.getpeername()[0]        
         response = conn.getresponse()
-        remote_ip = conn.sock.getpeername()[0]
         spyfile = response.fp
         response.read(initial_chunk_size)
         content_type = response.getheader("content-type","application/octet-stream")
