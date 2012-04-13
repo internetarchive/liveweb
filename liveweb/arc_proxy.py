@@ -50,6 +50,7 @@ def write_arc_file(arc_file_name, arc_record):
     outfile = gzip.GzipFile(filename = "", fileobj = fp)
     arc_record.write_to(outfile)
     outfile.close()
+    fp.close()
     os.rename(arc_file_name + ".tmp", arc_file_name)
     
     file_size = os.stat(arc_file_name).st_size
