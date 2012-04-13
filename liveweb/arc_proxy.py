@@ -110,13 +110,16 @@ def retrieve_url(url):
         conn.request("GET", resource, headers=headers)
     except socket.gaierror:
         raise ConnectionFailure()
-
+    
+    # In some cases conn.sock is becoming None after reading the data.
+    # Getting the remoteaddr early to avoid trouble.
+    remoteaddr = conn.sock.getpeername()[0]
+        
     response = conn.getresponse()
     fp = response.fp
     response.read() 
     line_data = fp.buf.getvalue() # TODO: Stream this data back instead of this one shot read.
-    
-    return response, line_data, conn.sock.getpeername()[0]
+    return response, line_data, remoteaddr
 
 def get(url):
     """Returns the content of the URL as an ARC record.
