@@ -20,8 +20,11 @@ CONFIG=config.yml
 
 UWSGI=$(VENV)/bin/uwsgi -H$(VENV)
 
+NPROCS=1
+NTHREADS=10
+
 run:
-	$(UWSGI) -M -i --http ${LIVEWEB_ADDRESS} --wsgi liveweb.main --pyargv $(CONFIG)
+	$(UWSGI) -M -i -l1024 -p $(NPROCS) --threads $(NTHREADS) --http ${LIVEWEB_ADDRESS} --wsgi liveweb.main --pyargv $(CONFIG)
 
 venv:
 	virtualenv --no-site-packages $(VENV)
