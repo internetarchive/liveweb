@@ -18,16 +18,7 @@ import redis
 from warc import arc
 from . import filetools
 from .errors import BadURL, ConnectionFailure
-
-STORAGE_BASE = "/tmp/records"
-USER_AGENT = "ia_archiver(OS-Wayback)"
-
-M = 1024 * 1024
-# Max size of ARC record that can be stored in cache
-MAX_CACHEABLE_SIZE = 10 * M
-EXPIRE_TIME = 3600
-
-cache = redis.StrictRedis()
+from . import config
 
 def get_ip_address(ifname):
     """Return the IP address of the requested interface.
@@ -47,7 +38,7 @@ def get_storage_location(url):
     multiple disks. """
     
     # For the time being, just return the storage_base
-    return STORAGE_BASE
+    return config.storage_root
     
 def random_string(length):
     return "".join(random.choice(string.letters) for i in range(length))
@@ -113,7 +104,7 @@ def retrieve_url(url):
 
     conn.response_class = filetools.SpyHTTPResponse
     headers = {
-        "User-Agent": USER_AGENT
+        "User-Agent": config.user_agent
     }
     try:
         conn.request("GET", resource, headers=headers)
@@ -135,25 +126,27 @@ def get(url):
 
     This is the only public API.
     """
+    cache = config.get_redis_client()
+    
     content = cache.get(url)
     if content is None:
         logging.info("cache miss: %s", url)
         size, arc_file_name = live_fetch(url)
         
         # too big to cache, just return the file from disk
-        if size > MAX_CACHEABLE_SIZE:
+        if size > config.max_cacheable_size:
             logging.info("too large to cache: %d", size)
             return size, open(arc_file_name)
         
         # TODO: ideally live_fetch should give us a file object, it can be 
         # either StringIO or real file depending on the size
         content = open(arc_file_name).read()
-        cache.setex(url, EXPIRE_TIME, content)
+        cache.setex(url, config.expire_time, content)
     else:
         logging.info("cache hit: %s", url)
         # Reset the expire time on read
         # TODO: don't update expire time if the record is more than 1 day old
-        cache.expire(url, EXPIRE_TIME)
+        cache.expire(url, config.expire_time)
         
     return len(content), content
     
@@ -175,4 +168,3 @@ def live_fetch(url):
 
     size, file_name = write_arc_file(url, arc_record)
     return size, file_name
-

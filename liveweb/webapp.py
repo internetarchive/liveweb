@@ -1,7 +1,6 @@
 """The webapp for arc proxy.
 """
 
-
 from cStringIO import StringIO
 import gzip
 import logging
@@ -9,7 +8,6 @@ import logging
 from . import arc_proxy
 from . import errors
 
-logging.basicConfig(level = logging.DEBUG)
 
 class application:
     """WSGI application for liveweb proxy.

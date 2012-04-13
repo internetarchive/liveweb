@@ -16,10 +16,12 @@ VENV=$(VIRTUAL_ENV)
 LIVEWEB_ADDRESS=localhost:7070
 WAYBACK_ADDRESS=:8080
 
+CONFIG=config.yml
+
 UWSGI=$(VENV)/bin/uwsgi -H$(VENV)
 
 run:
-	$(UWSGI) --http ${LIVEWEB_ADDRESS} --wsgi liveweb
+	$(UWSGI) -M -i --http ${LIVEWEB_ADDRESS} --wsgi liveweb.main --pyargv $(CONFIG)
 
 venv:
 	virtualenv --no-site-packages $(VENV)
