@@ -115,6 +115,10 @@ def get(url):
     """
     cache = config.get_redis_client()
     
+    # when redis is disabled
+    if cache is None:
+        return live_fetch(url)
+    
     content = cache.get(url)
     if content is None:
         logging.info("cache miss: %s", url)
@@ -133,9 +137,8 @@ def get(url):
         # TODO: don't update expire time if the record is more than 1 day old
         cache.expire(url, config.expire_time)
         
-    return len(content), content
+    return len(content), [content]
 
-    
 def live_fetch(url):
     """Downloads the content of the URL from web and returns it as an ARC 
     record.

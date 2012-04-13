@@ -17,7 +17,7 @@ max_cacheable_size = 10 * M
 
 expire_time = 3600
 
-redis_params = {}
+redis_params = None
 
 _redis_client = None
 
@@ -26,7 +26,7 @@ def get_redis_client():
     """
     # TODO: this is not right place to have this function. Move it to some better place.
     global _redis_client
-    if _redis_client is None:
+    if _redis_client is None and redis_params is not None:
         _redis_client = redis.StrictRedis(**redis_params)
     return _redis_client
 
