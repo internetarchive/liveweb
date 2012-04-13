@@ -13,7 +13,7 @@ import urllib
 import urlparse
 import random
 import string
-
+import redis
 
 from warc import arc
 from . import filetools
@@ -22,8 +22,12 @@ from .errors import BadURL, ConnectionFailure
 STORAGE_BASE = "/tmp/records"
 USER_AGENT = "ia_archiver(OS-Wayback)"
 
-url_cache = {}
+M = 1024 * 1024
+# Max size of ARC record that can be stored in cache
+MAX_CACHEABLE_SIZE = 10 * M
+EXPIRE_TIME = 3600
 
+cache = redis.StrictRedis()
 
 def get_ip_address(ifname):
     """Return the IP address of the requested interface.
@@ -49,6 +53,9 @@ def random_string(length):
     return "".join(random.choice(string.letters) for i in range(length))
 
 def write_arc_file(url, arc_record):
+    # XXX-Anand: Why is url passed as argument? 
+    # Can't we get it from the arc_record
+    
     location = get_storage_location(url)
     # TODO: Need to understand what this format is.
     # alexa-web-20110904174118-00038/51_23_20110804161301_crawl103.arc.gz
@@ -128,17 +135,27 @@ def get(url):
 
     This is the only public API.
     """
-    global url_cache
-
-    if url in url_cache:
-        size, arc_file_name = url_cache[url]
-    else:
+    content = cache.get(url)
+    if content is None:
+        logging.info("cache miss: %s", url)
         size, arc_file_name = live_fetch(url)
-        url_cache[url] = (size, arc_file_name)
-
-    logging.debug("Returning contents of %s", arc_file_name)
-
-    return (size, open(arc_file_name, "rb"))
+        
+        # too big to cache, just return the file from disk
+        if size > MAX_CACHEABLE_SIZE:
+            logging.info("too large to cache: %d", size)
+            return size, open(arc_file_name)
+        
+        # TODO: ideally live_fetch should give us a file object, it can be 
+        # either StringIO or real file depending on the size
+        content = open(arc_file_name).read()
+        cache.setex(url, EXPIRE_TIME, content)
+    else:
+        logging.info("cache hit: %s", url)
+        # Reset the expire time on read
+        # TODO: don't update expire time if the record is more than 1 day old
+        cache.expire(url, EXPIRE_TIME)
+        
+    return len(content), content
     
 def live_fetch(url):
     """Downloads the content of the URL from web and returns it as an ARC 
