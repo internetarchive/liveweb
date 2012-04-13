@@ -165,7 +165,7 @@ def live_fetch(url):
         response = conn.getresponse()
         spyfile = response.fp
         response.read(initial_chunk_size)
-        content_type = response.getheader("content-type","application/octet-stream")
+        content_type = response.getheader("content-type","application/octet-stream").split(';')[0]
     except ConnectionFailure:
         # Match the response of liveweb 1.0
         payload = "HTTP 502 Bad Gateway\n\n"
