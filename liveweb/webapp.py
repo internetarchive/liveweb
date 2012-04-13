@@ -57,6 +57,11 @@ class application:
         self.start_response(status, response_headers)
         return iter(data)
         
-    def error(self, status, headers=[]):
+    def error(self, status, headers=None):
+        if headers is None:
+            headers = [
+                ('Content-Type', 'text/plain'),
+                ('Content-Length', '0'),
+            ]
         self.start_response(status, headers)
         return iter([])
