@@ -30,6 +30,18 @@ def get_redis_client():
         _redis_client = redis.StrictRedis(**redis_params)
     return _redis_client
 
+def _parse_size(size):
+    size = str(size).upper().replace(" ", "")
+
+    if size.endswith("GB"):
+        return int(size[:-2]) * (1024 ** 3)
+    elif size.endswith("MB"):
+        return int(size[:-2]) * (1024 ** 2)
+    elif size.endswith("KB"):
+        return int(size[:-2]) * (1024 ** 1)
+    else:
+        return int(size)
+        
 def load(filename):
     """Loads configuration from specified config file.
     """
@@ -38,12 +50,13 @@ def load(filename):
         logging.warn("config file not found: %s, ignoring...", filename)
         return
         
-    d = yaml.safe_load(filename)
-    globals().update(d)
+    d = yaml.safe_load(open(filename))
     
-    if not os.path.exists(storage_root):
-        os.makedirs(storage_root)
+    if "max_cacheable_size" in d:
+        d['max_cacheable_size'] = _parse_size(d['max_cacheable_size'])
+
+    # update config
+    globals().update(d)
     
 # handy function to check for existance of a config parameter
 get = globals().get
-
