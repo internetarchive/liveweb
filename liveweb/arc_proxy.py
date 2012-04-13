@@ -159,12 +159,21 @@ def live_fetch(url):
     """
     initial_chunk_size = 10 * 1024 * 1024 # 10 MB
 
-    conn = establish_connection(url)
-    response = conn.getresponse()
-    remote_ip = conn.sock.getpeername()[0]
-    spyfile = response.fp
-    response.read(initial_chunk_size)
-
+    try:
+        conn = establish_connection(url)
+        
+        response = conn.getresponse()
+        remote_ip = conn.sock.getpeername()[0]
+        spyfile = response.fp
+        response.read(initial_chunk_size)
+        content_type = response.getheader("content-type","application/octet-stream")
+    except ConnectionFailure:
+        # Match the response of liveweb 1.0
+        payload = "HTTP 502 Bad Gateway\n\n"
+        content_type = "unk"
+        remote_ip = "0.0.0.0"
+        spyfile = filetools.SpyFile(StringIO(payload))
+        spyfile.read()
 
     initial_data = spyfile.buf.getvalue()
     data_length = len(initial_data)
@@ -175,7 +184,7 @@ def live_fetch(url):
         # Create regular arc file here
         arc_record = arc.ARCRecord(headers = dict(url = url,
                                                   date = datetime.datetime.utcnow(),
-                                                  content_type = response.getheader("content-type","application/octet-stream"),
+                                                  content_type = content_type,
                                                   ip_address = remote_ip,
                                                   length = data_length),
                                    payload = initial_data,
@@ -206,7 +215,7 @@ def live_fetch(url):
         # First write out the header (as much we have anyway)
         arc_header = arc.ARCHeader(url = url,
                                    date = datetime.datetime.utcnow(),
-                                   content_type = response.getheader("content-type", "application/octet-stream"),
+                                   content_type = content_type,
                                    ip_address = remote_ip,
                                    length = data_length)
         
