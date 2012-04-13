@@ -118,16 +118,14 @@ def get(url):
     content = cache.get(url)
     if content is None:
         logging.info("cache miss: %s", url)
-        size, arc_file_name = live_fetch(url)
+        size, arc_file_handle = live_fetch(url)
         
         # too big to cache, just return the file from disk
         if size > config.max_cacheable_size:
             logging.info("too large to cache: %d", size)
-            return size, open(arc_file_name)
+            return size, arc_file_handle
         
-        # TODO: ideally live_fetch should give us a file object, it can be 
-        # either StringIO or real file depending on the size
-        content = open(arc_file_name).read()
+        content = arc_file_handle.read()
         cache.setex(url, config.expire_time, content)
     else:
         logging.info("cache hit: %s", url)
@@ -237,4 +235,4 @@ def live_fetch(url):
         size = os.stat(arc_file_name).st_size
         arc_file_handle = open(arc_file_name, "rb")
         
-    return size, arc_file_handle, arc_file_name
+    return size, arc_file_handle
