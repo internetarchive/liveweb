@@ -71,7 +71,7 @@ def decompose_url(url):
         scheme, netloc, path, query, fragment, = urlparse.urlsplit("http://"+url)
         
     resource = urlparse.urlunsplit(["","", path, query, fragment]) #TODO: This might alter the URL
-    logging.debug("Scheme : %s\nNetloc : %s\nPath : %s\nQuery : %s\nFragment : %s\n", scheme, netloc, path, query, fragment)
+    # logging.debug("Scheme : %s\nNetloc : %s\nPath : %s\nQuery : %s\nFragment : %s\n", scheme, netloc, path, query, fragment)
     logging.debug("Recomposed resource is '%s'", resource)
     if not resource:
         logging.debug("Resource string is empty. Changing it to /")
@@ -91,7 +91,7 @@ def establish_connection(url):
     logging.debug("Attempting to fetch '%s' from '%s'", resource, server)
 
     try:
-        conn = httplib.HTTPConnection(server)
+        conn = httplib.HTTPConnection(server, timeout = int(config.dns_timeout))
     except httplib.InvalidURL:
         raise BadURL("'%s' is an invalid URL", url)
 
@@ -168,6 +168,7 @@ def live_fetch(url):
         content_type = response.getheader("content-type","application/octet-stream").split(';')[0]
     except (ConnectionFailure, socket.error), e:
         # Match the response of liveweb 1.0
+        logging.debug("Error while establishing connection. Traceback follows. Returning 502.", exc_info = True)
         payload = "HTTP 502 Bad Gateway\n\n"
         content_type = "unk"
         remote_ip = "0.0.0.0"
