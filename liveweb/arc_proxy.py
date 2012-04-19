@@ -91,7 +91,7 @@ def establish_connection(url):
     logging.debug("Attempting to fetch '%s' from '%s'", resource, server)
 
     try:
-        conn = httplib.HTTPConnection(server, timeout = int(config.dns_timeout))
+        conn = httplib.HTTPConnection(server, timeout = int(config.timeout))
     except httplib.InvalidURL:
         raise BadURL("'%s' is an invalid URL", url)
 

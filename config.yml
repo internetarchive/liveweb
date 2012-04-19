@@ -12,6 +12,7 @@ expire_time: 3600
 #    port: 6379
 #    db: 0
 
-# All timeouts specified in seconds
-dns_timeout: 5 # Timeout for the initial DNS lookup and HTTP connection
+# Maximum amount of time for a URL to be downloaded
+timeout: 10
   
+
