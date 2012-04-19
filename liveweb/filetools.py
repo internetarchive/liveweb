@@ -1,11 +1,17 @@
 from cStringIO import StringIO
 import httplib
+import logging
 
-def spy(fileobj, spyobj = None):
+from . import config
+
+class SizeLimitExceeded(IOError): pass
+
+
+def spy(fileobj, spyobj = None, max_size = None):
     """Returns a new file wrapper the records the contents of a file
     as someone is reading from it.
     """
-    return SpyFile(fileobj, spyobj)
+    return SpyFile(fileobj, spyobj, max_size)
 
 class SpyFile:
     """File wrapper to record the contents of a file as someone is
@@ -27,18 +33,31 @@ class SpyFile:
     
                               
     """
-    def __init__(self, fileobj, spy = None):
+    def _check_size(self):
+        """Raises SizeLimitExceeded if the SpyFile has seen more data
+        than the specified limit"""
+        if self.max_size:
+            if self.current_size > int(self.max_size):
+                raise SizeLimitExceeded("Spy file limit exceeded %d (max size : %d)"%(self.current_size, self.max_size))
+
+    def __init__(self, fileobj, spy = None, max_size = None):
         self.fileobj = fileobj
         self.buf = spy or StringIO()
+        self.max_size = max_size
+        self.current_size = 0
 
     def read(self, *a, **kw):
         text = self.fileobj.read(*a, **kw)
         self.buf.write(text)
+        self.current_size += len(text)
+        self._check_size()
         return text
 
     def readline(self, *a, **kw):
         text = self.fileobj.readline(*a, **kw)
         self.buf.write(text)
+        self.current_size += len(text)
+        self._check_size()
         return text
     
     def close(self):
@@ -55,7 +74,8 @@ class SpyFile:
 class SpyHTTPResponse(httplib.HTTPResponse):
     def __init__(self, *a, **kw):
         httplib.HTTPResponse.__init__(self, *a, **kw)
-        self.fp = spy(self.fp)
+        from . import config
+        self.fp = spy(self.fp, None, config.max_payload_size)
 
 def test():
     import httplib
