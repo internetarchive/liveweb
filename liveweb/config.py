@@ -15,6 +15,15 @@ M = 1024 * 1024
 # Max size of ARC record that can be stored in cache
 max_cacheable_size = 10 * M
 
+# timeout in seconds
+timeout = 60
+
+# can be either arc or warc
+archive_format = "arc"
+
+# When set to True, the http payload is served instead of arc/warc record
+http_passthrough = False
+
 expire_time = 3600
 
 redis_params = None
