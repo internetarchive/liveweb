@@ -14,7 +14,6 @@ from warc import arc
 from warc.utils import FilePart
 from . import filetools
 from . import config
-from .errors import BadURL, ConnectionFailure
 
 MEG = 1024 * 1024
 
@@ -35,9 +34,11 @@ def urlopen(url):
     
     try:
         conn = httplib.HTTPConnection(host, timeout=config.timeout)
-    except httplib.InvalidURL:
-        # TODO Returns response with appropriate status code instead of raising exception
-        raise BadURL("'%s' is an invalid URL", url)
+    except httplib.InvalidURL, e:
+        logging.error("Invalid URL (%s)", str(e))
+        response = ProxyHTTPResponse(url, None, method="GET")
+        response.error_bad_url()
+        return response
     
     headers = {
         "User-Agent": config.user_agent
@@ -45,12 +46,23 @@ def urlopen(url):
     
     try:
         conn.request("GET", selector, headers=headers)
-    except socket.gaierror:
-        # TODO Returns response with appropriate status code instead of raising exception
-        raise ConnectionFailure()
+    except socket.error, e:
+        logging.error("Connection failed, considering as bad gateway. (%s)", str(e))
+        response = ProxyHTTPResponse(url, None, method="GET")
+        response.error_bad_gateway()
+        return response
     
     conn.response_class = lambda *a, **kw: ProxyHTTPResponse(url, *a, **kw)
     return conn.getresponse()
+    
+class _FakeSocket:
+    """Faking a socket with makefile method.
+    """
+    def makefile(self, mode="rb", bufsize=0):
+        return StringIO()
+    
+    def getpeername(self):
+        return ("0.0.0.0", 80)
     
 class ProxyHTTPResponse(httplib.HTTPResponse):
     """HTTPResponse wrapper to record the HTTP payload.
@@ -58,6 +70,7 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
     Provides utility methods to write ARC and WARC files.
     """
     def __init__(self, url, sock, *a, **kw):
+        sock = sock or _FakeSocket()
         httplib.HTTPResponse.__init__(self, sock, *a, **kw)
         self.pool = filetools.DummyFilePool()
         
@@ -101,17 +114,25 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
         """Resets the status code to "502 Bad Gateway" indicating that there was 
         some network error when trying to accessing the server.
         """
+        self._error(502, "Bad Gateway")
+        
+    def error_bad_url(self):
+        """Resets the status code to "400 Bad Request" indicating that the URL provided is bad.
+        """
+        self._error(400, "Bad Request")
+        
+    def _error(self, status, reason):
         self.version = "HTTP/1.1"
-        self.status = 502
-        self.reason = "Bad Gateway"
-
+        self.status = status
+        self.reason = reason
+        
         # close file
         if self.fp:
             self.fp.close()
             self.fp = None
             
         self.buf = EMPTY_BUFFER
-        
+    
     def write_arc(self):
         record = self._make_arc_record(self.url)
 
