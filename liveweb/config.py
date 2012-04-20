@@ -15,6 +15,9 @@ M = 1024 * 1024
 # Max size of ARC record that can be stored in cache
 max_cacheable_size = 10 * M
 
+# timeout in seconds
+timeout = 60
+
 expire_time = 3600
 
 redis_params = None

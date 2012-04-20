@@ -5,7 +5,7 @@ from cStringIO import StringIO
 import gzip
 import logging
 
-from . import arc_proxy
+from . import proxy
 from . import errors
 
 
@@ -36,10 +36,25 @@ class application:
         if self.url.startswith("/"):
             self.url = "http://" + self.environ['HTTP_HOST'] + self.url
             
+    def _get(self, url):
+        response = proxy.get(url)
+        response = arc_writer(response)
+        return response
+        
+    def get(self, url):
+        response = self.cache.get(url)
+        if not response:
+            response = self._get(url)
+            self.cache.set(url, response)
+        return response
+    
     def __iter__(self):
         try:
             self.parse_request()
-            size, fileobj = arc_proxy.get(self.url)
+
+            response = proxy.urlopen(self.url)
+            response.write_arc()
+            size, fileobj = response.get_arc()
             return self.success(size, fileobj)
         except errors.BadURL:
             logging.error("bad url %r", self.url)
