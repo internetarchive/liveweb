@@ -2,6 +2,7 @@ from cStringIO import StringIO
 import httplib
 import tempfile
 import logging
+import os
 
 def spy(fileobj, spyobj = None):
     """Returns a new file wrapper the records the contents of a file
@@ -132,8 +133,8 @@ def fileiter(file, size, chunk_size=1024*10):
         if not content:
             break
         yield content
-        completed += nbytes
-
+        completed += len(content)
+        
 def test():
     import httplib
     conn = httplib.HTTPConnection("openlibrary.org")
