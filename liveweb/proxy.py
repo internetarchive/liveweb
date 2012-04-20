@@ -74,7 +74,6 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
     def __init__(self, url, sock, *a, **kw):
         sock = sock or _FakeSocket()
         httplib.HTTPResponse.__init__(self, sock, *a, **kw)
-        self.pool = filetools.DummyFilePool()
         
         self.url = url
         self.remoteip = sock.getpeername()[0]
@@ -136,7 +135,7 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
             
         self.buf = EMPTY_BUFFER
     
-    def write_arc(self):
+    def write_arc(self, pool):
         record = self._make_arc_record(self.url)
 
         # if small enough, store in memory
@@ -146,14 +145,14 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
             begin, record_size = self._write_arc_record(record, buf)
                         
             # write the ARC record data in memory into file
-            with self.pool.get_file() as f:
+            with pool.get_file() as f:
                 logging.info("writing arc record to file %s", f.name)
                 f.write(buf.getvalue())
                 
             # use the memory buffer as fileobj
             fileobj = buf
         else:
-            with self.pool.get_file() as f:
+            with pool.get_file() as f:
                 logging.info("writing arc record to file %s", f.name)
                 filename = f.name
                 begin, record_size = self._write_arc_record(record, f)
@@ -208,7 +207,10 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
         raise NotImplementedError()
         
     def get_arc(self):
-        """Returns size and fileobj to read arc data."""
+        """Returns size and fileobj to read arc data.
+        
+        This must be called only after calling write_arc method.
+        """
         if self.arc_data is None:
             self.write_arc()
         return self.arc_size, self.arc_data
@@ -220,9 +222,6 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
     def get_payload(self):
         """Returns size and fileobj to read HTTP payload.
         """
-        if self.arc_data is None:
-            self.write_arc()
-
         # go to the end find the filesize
         self.buf.seek(0, 2)
         size = self.buf.tell() - self.header_offset

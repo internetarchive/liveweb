@@ -8,6 +8,14 @@ import logging
 from . import proxy
 from . import errors
 from . import config
+from . import file_pool
+
+# TODO: take all these params from config
+pool = file_pool.FilePool(
+    config.storage_root, 
+    pattern="live-%(timestamp)s-%(seq)s.arc.gz",
+    max_files=1,
+    max_file_size=1024*1024*10)
 
 class application:
     """WSGI application for liveweb proxy.
@@ -22,8 +30,6 @@ class application:
             self.url = self.environ['REQUEST_URI'] #TODO: Is this a valid environment variable always?
         if 'RAW_URI' in self.environ: # This is for gunicorn
             self.url = self.environ['RAW_URI'] #TODO: Is this a valid environment variable always?
-            
-        
 
         # Allow accessing the proxy using regular URL so that we can use
         # tools like ab.
@@ -54,7 +60,7 @@ class application:
             self.parse_request()
 
             response = proxy.urlopen(self.url)
-            response.write_arc()
+            response.write_arc(pool)
             
             if config.http_passthrough:
                 return self.proxy_response(response)
