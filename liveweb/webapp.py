@@ -7,7 +7,7 @@ import logging
 
 from . import proxy
 from . import errors
-
+from . import config
 
 class application:
     """WSGI application for liveweb proxy.
@@ -49,13 +49,18 @@ class application:
         return response
     
     def __iter__(self):
+        response = None
         try:
             self.parse_request()
 
             response = proxy.urlopen(self.url)
             response.write_arc()
-            size, fileobj = response.get_arc()
-            return self.success(size, fileobj)
+            
+            if config.http_passthrough:
+                return self.proxy_response(response)
+            else:
+                size, fileobj = response.get_arc()
+                return self.success(size, fileobj)
         except errors.BadURL:
             logging.error("bad url %r", self.url)
             return self.error("400 Bad Request")
@@ -65,6 +70,21 @@ class application:
         except:
             logging.error("Internal Error", exc_info=True)
             return self.error("500 Internal Server Error")
+        finally:
+            if response:
+                # XXX-Anand: response.cleanup will unlink the temp file, # 
+                # which'll will be in use when we are in http_passthrough mode. 
+                # The file will be removed when the reference to the file object 
+                # is gone. 
+                # This may create trouble on windoz.
+                response.cleanup()
+            
+    def proxy_response(self, response):
+        """Send the response data as it is """
+        status = "%d %s" % (response.status, response.reason)
+        headers = response.getheaders()
+        self.start_response(status, headers)
+        return response.get_payload()
             
     def success(self, clen, data):
         status = '200 OK'

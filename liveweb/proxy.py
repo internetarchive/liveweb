@@ -66,6 +66,9 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
         self.content_type = "application/octet-stream"
         self.buf = EMPTY_BUFFER
         
+        # Length of header data
+        self.header_offset = 0
+        
         self.arc_size = None
         self.arc_data = None
 
@@ -79,6 +82,7 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
         except socket.error:
             self.error_bad_gateway()
             
+        self.header_offset = self.buf.tell()
         self._read_all()
         
     def _read_all(self):
@@ -192,5 +196,13 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
     def get_payload(self):
         """Returns size and fileobj to read HTTP payload.
         """
-        self.buf.seek(0)
-        return self.buf
+        if self.arc_data is None:
+            self.write_arc()
+
+        # go to the end find the filesize
+        self.buf.seek(0, 2)
+        size = self.buf.tell() - self.header_offset
+
+        # go to the beginning
+        self.buf.seek(self.header_offset)
+        return filetools.fileiter(self.buf, size)

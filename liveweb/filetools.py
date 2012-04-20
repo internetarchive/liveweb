@@ -105,9 +105,6 @@ class MemFile:
         if self._fileobj and not self.in_memory():
             logging.info("removing temp file %s", self._fileobj.name)
             os.unlink(self._fileobj.name)
-        
-        self._fileobj = None
-
 
 class DummyFilePool:
     """Simple implementation of FilePool.
