@@ -69,6 +69,8 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
     
     Provides utility methods to write ARC and WARC files.
     """
+    DEFAULT_CONTENT_TYPE = "unk"
+    
     def __init__(self, url, sock, *a, **kw):
         sock = sock or _FakeSocket()
         httplib.HTTPResponse.__init__(self, sock, *a, **kw)
@@ -76,7 +78,7 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
         
         self.url = url
         self.remoteip = sock.getpeername()[0]
-        self.content_type = "application/octet-stream"
+        self.content_type = self.DEFAULT_CONTENT_TYPE
         self.buf = EMPTY_BUFFER
         
         # Length of header data
@@ -91,7 +93,7 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
         
         try:
             httplib.HTTPResponse.begin(self)
-            self.content_type = self.getheader("content-type","application/octet-stream").split(';')[0]
+            self.content_type = self.getheader("content-type", self.DEFAULT_CONTENT_TYPE).split(';')[0]
         except socket.error:
             self.error_bad_gateway()
             
@@ -125,6 +127,7 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
         self.version = "HTTP/1.1"
         self.status = status
         self.reason = reason
+        self.content_type = self.DEFAULT_CONTENT_TYPE
         
         # close file
         if self.fp:
