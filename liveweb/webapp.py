@@ -9,6 +9,7 @@ from . import proxy
 from . import errors
 from . import config
 from . import file_pool
+from . import cache
 
 # TODO: take all these params from config
 pool = file_pool.FilePool(
@@ -16,6 +17,8 @@ pool = file_pool.FilePool(
     pattern="live-%(timestamp)s-%(seq)s.arc.gz",
     max_files=1,
     max_file_size=1024*1024*10)
+
+_cache = cache.create(**config.cache)
 
 class application:
     """WSGI application for liveweb proxy.
@@ -59,8 +62,13 @@ class application:
         try:
             self.parse_request()
 
-            response = proxy.urlopen(self.url)
-            record = response.write_arc(pool)
+            record = _cache.get(self.url)
+            if record is None:
+                response = proxy.urlopen(self.url)
+                record = response.write_arc(pool)
+                _cache.set(self.url, record)
+
+            # XXX-Anand: http_passthrough doesn't work on cache hit
             if config.http_passthrough:
                 return self.proxy_response(response)
             else:

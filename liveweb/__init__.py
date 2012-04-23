@@ -1,3 +1,2 @@
 
-from .webapp import application
 

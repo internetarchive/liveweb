@@ -5,14 +5,15 @@ user_agent: "ia_archiver(OS-Wayback)"
 # Max size of ARC record that can be stored in cache
 max_cacheable_size: "10MB"
 
-expire_time: 3600
-
 #redis_params:
 #    host: localhost
 #    port: 6379
 #    db: 0
 
 # Maximum amount of time for a URL to be downloaded
-timeout: 10
+timeout: 1
   
+#http_passthrough: True
 
+#cache:
+#    type: redis

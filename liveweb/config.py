@@ -4,7 +4,6 @@ This is initialized by calling the load(configfile) function on startup.
 """
 import yaml
 import os
-import redis
 import logging
 
 storage_root = "/tmp/records"
@@ -24,20 +23,7 @@ archive_format = "arc"
 # When set to True, the http payload is served instead of arc/warc record
 http_passthrough = False
 
-expire_time = 3600
-
-redis_params = None
-
-_redis_client = None
-
-def get_redis_client():
-    """Returns the redis client instance created from the config.
-    """
-    # TODO: this is not right place to have this function. Move it to some better place.
-    global _redis_client
-    if _redis_client is None and redis_params is not None:
-        _redis_client = redis.StrictRedis(**redis_params)
-    return _redis_client
+cache = {"type": None}
 
 def _parse_size(size):
     size = str(size).upper().replace(" ", "")
