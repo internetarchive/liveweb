@@ -19,6 +19,45 @@ MEG = 1024 * 1024
 
 EMPTY_BUFFER = filetools.MemFile()
 
+
+class Record:
+    """A class to hold together the filepath, content_length, and iterator over content.
+    """
+    def __init__(self, filename, offset=0, content_length=None, content_iter=None):
+        """Creates a new record instance.
+
+        :param filename: Relative or absolute path to the file that has this record.
+        :param offset: The offset in the file where this record started.
+        :param content_length: The total length of the record.
+        :param content_iter: An iterator over content.
+        """
+        self.filename = filename
+        self.offset = offset
+        self.content_length = content_length
+        self.content_iter = content_iter
+
+        if self.content_length is None:
+            self.content_length = os.stat(filepath).st_size
+
+        if self.content_iter is None:
+            f = open(self.filename, 'rb')
+            f.seek(self.offset)
+            self.content_iter = filetools.fileiter(f, self.content_length)
+
+    def read_all(self):
+        """Reads all the data from content_iter and reinitializes the
+        content_iter with the data read.
+
+        Since this reads all the data into memory, this should be used
+        only when content_length is not very big.
+        """
+        data = "".join(self.content_iter)
+        self.content_iter = iter([data])
+        return data
+
+    def __iter__(self):
+        return iter(self.content_iter)
+
 def split_type_host(url):
     """Returns (type, host, selector) from the url.
     """
@@ -58,8 +97,11 @@ def urlopen(url):
 class _FakeSocket:
     """Faking a socket with makefile method.
     """
+    def __init__(self, fileobj=None):
+        self.fileobj = fileobj or StringIO()
+
     def makefile(self, mode="rb", bufsize=0):
-        return StringIO()
+        return self.fileobj
     
     def getpeername(self):
         return ("0.0.0.0", 80)
@@ -136,7 +178,7 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
         self.buf = EMPTY_BUFFER
     
     def write_arc(self, pool):
-        record = self._make_arc_record(self.url)
+        record = self._make_arc_record()
 
         # if small enough, store in memory
         if record.header.length < MEG: 
@@ -148,19 +190,16 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
             with pool.get_file() as f:
                 logging.info("writing arc record to file %s", f.name)
                 f.write(buf.getvalue())
+                filename = f.name
                 
-            # use the memory buffer as fileobj
-            fileobj = buf
+            return Record(filename, offset=0, content_length=record_size, content_iter=iter([buf.getvalue()]))
         else:
             with pool.get_file() as f:
                 logging.info("writing arc record to file %s", f.name)
                 filename = f.name
                 begin, record_size = self._write_arc_record(record, f)
-            fileobj = open(filename)
-        
-        fileobj.seek(begin)
-        self.arc_size = record_size
-        self.arc_data = filetools.fileiter(fileobj, record_size)
+
+            return Record(filename, offset=begin, content_length=record_size)
                 
     def _write_arc_record(self, record, fileobj):
         """Writes the give ARC record into the given fileobj as gzip data and returns the start offset in the file and and record size.
@@ -174,9 +213,8 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
         
         end = fileobj.tell()
         return begin, end-begin
-        
                         
-    def _make_arc_record(self, url):
+    def _make_arc_record(self):
         if self.status == 502:
             # Match the response of liveweb 1.0 incase of gateway errors.
             payload = "HTTP 502 Bad Gateway\n\n"
@@ -194,15 +232,22 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
             remoteip = self.remoteip
             content_type = self.content_type
     
-        headers = dict(url = url,
-                       date = datetime.datetime.utcnow(),
+        headers = dict(url = self.url,
+                       date = self._utcnow(),
                        content_type = self.content_type,
                        ip_address = self.remoteip,
                        length = payload_length)
         return arc.ARCRecord(headers = headers, 
                              payload = payload,
                              version = 1)
-        
+
+    def _utcnow(self):
+        """Returns datetime.datetime.utcnow(). 
+
+        Provided as a method here so that it is easy to monkeypatch for testing.
+        """
+        return datetime.datetime.utcnow()
+    
     def write_warc(self, pool):
         raise NotImplementedError()
         

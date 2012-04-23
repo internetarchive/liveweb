@@ -60,13 +60,11 @@ class application:
             self.parse_request()
 
             response = proxy.urlopen(self.url)
-            response.write_arc(pool)
-            
+            record = response.write_arc(pool)
             if config.http_passthrough:
                 return self.proxy_response(response)
             else:
-                size, fileobj = response.get_arc()
-                return self.success(size, fileobj)
+                return self.success(record.content_length, record.content_iter)
         except errors.BadURL:
             logging.error("bad url %r", self.url)
             return self.error("400 Bad Request")
