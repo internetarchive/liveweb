@@ -6,7 +6,6 @@ import yaml
 import os
 import logging
 
-storage_root = "/tmp/records"
 user_agent = "ia_archiver(OS-Wayback)"
 
 M = 1024 * 1024
@@ -24,6 +23,12 @@ archive_format = "arc"
 http_passthrough = False
 
 cache = {"type": None}
+
+# If no storage is specified store it in "records" directory in the $PWD
+storage = {
+    "directory": "records"
+}
+    
 
 def _parse_size(size):
     size = str(size).upper().replace(" ", "")

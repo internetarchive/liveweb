@@ -10,9 +10,9 @@ from . import config
 if len(sys.argv) > 1:
     config.load(sys.argv[1])
     
-# Make sure the storage_root directory exists
-if not os.path.exists(config.storage_root):
-    os.makedirs(config.storage_root)
+# Make sure the storage directory exists
+if not os.path.exists(config.storage['directory']):
+    os.makedirs(config.storage['directory'])
 
 from . import webapp
 application = webapp.application

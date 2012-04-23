@@ -11,12 +11,9 @@ from . import config
 from . import file_pool
 from . import cache
 
-# TODO: take all these params from config
-pool = file_pool.FilePool(
-    config.storage_root, 
-    pattern="live-%(timestamp)s-%(seq)s.arc.gz",
-    max_files=1,
-    max_file_size=1024*1024*10)
+
+# File pool to store arc files
+pool = file_pool.FilePool(**config.storage)
 
 _cache = cache.create(**config.cache)
 

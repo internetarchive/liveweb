@@ -1,5 +1,10 @@
 
-storage_root: "/tmp/records"
+storage:
+    directory: "records"
+    max_files: 1
+    max_file_size: 100000000 # 100MB approx.
+    pattern: "liveweb-%(seq)s-%(time)s.arc.gz"
+
 user_agent: "ia_archiver(OS-Wayback)"
 
 # Max size of ARC record that can be stored in cache

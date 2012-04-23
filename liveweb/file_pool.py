@@ -35,7 +35,7 @@ class FilePool(object):
     Implements a pool of files from which a file can be requested.
 
     """
-    def __init__(self, directory, pattern, max_files, max_file_size):
+    def __init__(self, directory, pattern="liveweb-%(time)s-%(seq)s.arc.gz", max_files=1, max_file_size=100*1024*1024):
         """
         Creates a pool of files in the given directory with the
         specified pattern.
