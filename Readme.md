@@ -1,6 +1,8 @@
 Liveweb Proxy for Wayback Machine
 =================================
 
+[![Build Status](https://secure.travis-ci.org/internetarchive/liveweb.png?branch=master)](http://travis-ci.org/internetarchive/liveweb)
+
 Liveweb proxy is component of Internet Archive's [wayback machine][]
 project.
 
