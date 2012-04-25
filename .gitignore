@@ -3,3 +3,5 @@ lib/
 include/
 *.egg-info/
 *.pyc
+.coverage
+htmlcov/
