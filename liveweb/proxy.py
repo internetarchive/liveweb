@@ -70,14 +70,16 @@ def urlopen(url):
     """
     logging.info("urlopen %s", url)
     type, host, selector = split_type_host(url)
-    
-    try:
-        conn = httplib.HTTPConnection(host, timeout=config.timeout)
-    except httplib.InvalidURL, e:
-        logging.error("Invalid URL (%s)", str(e))
+
+    def bad_gateway():
         response = ProxyHTTPResponse(url, None, method="GET")
-        response.error_bad_url()
+        response.error_bad_gateway()
         return response
+
+    try:
+        conn = ProxyHTTPConnection(host, timeout=config.timeout)
+    except httplib.InvalidURL, e:
+        return bad_gateway()
     
     headers = {
         "User-Agent": config.user_agent
@@ -87,9 +89,7 @@ def urlopen(url):
         conn.request("GET", selector, headers=headers)
     except socket.error, e:
         logging.error("ERROR 1 - failed to connect. (%s)", str(e))
-        response = ProxyHTTPResponse(url, None, method="GET")
-        response.error_bad_gateway()
-        return response
+        return bad_gateway()
     
     conn.response_class = lambda *a, **kw: ProxyHTTPResponse(url, *a, **kw)
     return conn.getresponse()
@@ -105,7 +105,7 @@ class _FakeSocket:
     
     def getpeername(self):
         return ("0.0.0.0", 80)
-    
+
 class ProxyHTTPResponse(httplib.HTTPResponse):
     """HTTPResponse wrapper to record the HTTP payload.
     
@@ -284,3 +284,14 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
         # go to the beginning
         self.buf.seek(self.header_offset)
         return filetools.fileiter(self.buf, size)
+
+
+class ProxyHTTPConnection(httplib.HTTPConnection):
+    """HTTPConnection wrapper to add extra hooks to handle errors.
+    """
+    response_class = ProxyHTTPResponse
+
+    def connect(self):
+        # Add . to the hostname to tell the DNS server to not use the search domain
+        ip = socket.gethostbyname(self.host + ".")
+        self.sock = socket.create_connection((ip, self.port), self.timeout)
