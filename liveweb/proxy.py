@@ -86,7 +86,7 @@ def urlopen(url):
     try:
         conn.request("GET", selector, headers=headers)
     except socket.error, e:
-        logging.error("Connection failed, considering as bad gateway. (%s)", str(e))
+        logging.error("ERROR 1 - failed to connect. (%s)", str(e))
         response = ProxyHTTPResponse(url, None, method="GET")
         response.error_bad_gateway()
         return response
@@ -135,11 +135,20 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
         try:
             httplib.HTTPResponse.begin(self)
             self.content_type = self.getheader("content-type", self.DEFAULT_CONTENT_TYPE).split(';')[0]
+            self.header_offset = self.buf.tell()
+        except socket.error, e:
+            self.error_bad_gateway()
+            logging.error("ERROR 2 - timeout when receiving headers (%s)", str(e))
+
+            # Tell HTTPConnection to close this connection
+            self.will_close = True
+            return
+
+        try:
+            self._read_all()
         except socket.error:
             self.error_bad_gateway()
-            
-        self.header_offset = self.buf.tell()
-        self._read_all()
+            logging.error("ERROR 3 - timeout when receiving body (%s)", str(e))  
         
     def _read_all(self):
         try:
@@ -176,6 +185,7 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
             self.fp = None
             
         self.buf = EMPTY_BUFFER
+        self.header_offset = 0
     
     def write_arc(self, pool):
         record = self._make_arc_record()
