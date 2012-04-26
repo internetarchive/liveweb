@@ -1,4 +1,5 @@
-from .. import proxy
+from .. import proxy, config
+
 from cStringIO import StringIO
 import datetime
 
@@ -105,3 +106,41 @@ class TestProxyResponse:
         response = self.make_response(http_payload)
         arc = response._make_arc_record()
         assert str(arc.header) == "http://example.com/hello 0.0.0.0 20100908070605 text/plain %d" % len(http_payload)
+
+
+def test_errors(monkeypatch):
+    def f(err, url):
+        try:
+            proxy._urlopen(url)
+        except proxy.ProxyError, e:
+            assert (e.errcode, e.errmsg) == err
+        else:
+            assert False, "Excepted ProxyError 'E%02d: %s', none raised" % err
+
+
+    monkeypatch.setattr(config, "timeout", 1.0)
+
+    f(proxy.ERR_INVALID_URL, "http://localhost:foo/")
+    f(proxy.ERR_INVALID_DOMAIN, "http://invalid.com2/")
+
+    # archive.org refuses connections on unused ports 
+    f(proxy.ERR_CONN_REFUSED, "http://archive.org:1234")
+
+    # www.google.com drops the TCP packets on unsed ports, resulting in timeout
+    f(proxy.ERR_TIMEOUT_CONNECT, "http://www.google.com:1234")
+  
+    f(proxy.ERR_TIMEOUT_HEADERS, "http://httpbin.org/delay/10")
+
+    f(proxy.ERR_CONN_DROPPED, "http://home.us.archive.org/~anand/liveweb-tests/drop.php")
+
+"""
+[X] ERR_INVALID_URL = 10, "invalid URL"
+[X] ERR_INVALID_DOMAIN = 20, "invalid domain"
+[ ] ERR_DNS_TIMEOUT = 21, "dns timeout"
+[X] ERR_CONN_REFUSED = 30, "connection refused"
+[X] ERR_CONN_DROPPED = 31, "connection dropped"
+[ ] ERR_CONN_MISC = 39, "connection error"
+[X] ERR_TIMEOUT_CONNECT = 40, "timeout when connecting"
+[X] ERR_TIMEOUT_HEADERS = 41, "timeout when reading headers"
+[ ] ERR_TIMEOUT_BODY = 42, "timeout when reading body"
+"""

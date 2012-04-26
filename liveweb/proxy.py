@@ -9,6 +9,7 @@ import socket
 import urllib
 from cStringIO import StringIO
 import tempfile
+import sys
 
 from warc import arc
 from warc.utils import FilePart
@@ -19,6 +20,22 @@ MEG = 1024 * 1024
 
 EMPTY_BUFFER = filetools.MemFile()
 
+ERR_INVALID_URL = 10, "invalid URL"
+ERR_INVALID_DOMAIN = 20, "invalid domain"
+ERR_DNS_TIMEOUT = 21, "dns timeout"
+ERR_CONN_REFUSED = 30, "connection refused"
+ERR_CONN_DROPPED = 31, "connection dropped"
+ERR_CONN_MISC = 39, "connection error"
+ERR_TIMEOUT_CONNECT = 40, "timeout when connecting"
+ERR_TIMEOUT_HEADERS = 41, "timeout when reading headers"
+ERR_TIMEOUT_BODY = 42, "timeout when reading body"
+
+class ProxyError(Exception):
+    def __init__(self, error, cause=None):
+        self.errcode, self.errmsg = error
+
+        msg = "E%02d: %s (%s)" % (self.errcode, self.errmsg, cause)
+        Exception.__init__(self, msg)
 
 class Record:
     """A class to hold together the filepath, content_length, and iterator over content.
@@ -65,35 +82,41 @@ def split_type_host(url):
     host, selector = urllib.splithost(rest)
     return type, host, selector
 
+
+def log_error(err):
+    code, msg = err
+    exc_type, exc_value, _ = sys.exc_info()
+    logging.error("E%02d - %s (%s)", code, msg, str(exc_value))
+
 def urlopen(url):
     """Works like urllib.urlopen, but returns a ProxyHTTPResponse object instead.
     """
     logging.info("urlopen %s", url)
-    type, host, selector = split_type_host(url)
+ 
+    try:
+        return _urlopen(url)
+    except ProxyError, e:
+        logging.error(str(e))
 
-    def bad_gateway():
         response = ProxyHTTPResponse(url, None, method="GET")
         response.error_bad_gateway()
         return response
 
-    try:
-        conn = ProxyHTTPConnection(host, timeout=config.timeout)
-    except httplib.InvalidURL, e:
-        return bad_gateway()
+def _urlopen(url):
+    """urlopen without the exception handling.
     
+    Called by urlopen and test cases.
+    """
     headers = {
-        "User-Agent": config.user_agent
+        "User-Agent": config.user_agent,
+        "Connection": "close"
     }
-    
-    try:
-        conn.request("GET", selector, headers=headers)
-    except socket.error, e:
-        logging.error("ERROR 1 - failed to connect. (%s)", str(e))
-        return bad_gateway()
-    
-    conn.response_class = lambda *a, **kw: ProxyHTTPResponse(url, *a, **kw)
+    type, host, selector = split_type_host(url)
+
+    conn = ProxyHTTPConnection(host, timeout=config.timeout)
+    conn.request("GET", selector, headers=headers)
     return conn.getresponse()
-    
+
 class _FakeSocket:
     """Faking a socket with makefile method.
     """
@@ -137,28 +160,19 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
             self.content_type = self.getheader("content-type", self.DEFAULT_CONTENT_TYPE).split(';')[0]
             self.header_offset = self.buf.tell()
         except socket.error, e:
-            self.error_bad_gateway()
-            logging.error("ERROR 2 - timeout when receiving headers (%s)", str(e))
-
-            # Tell HTTPConnection to close this connection
-            self.will_close = True
-            return
+            raise ProxyError(ERR_TIMEOUT_HEADERS, str(e))
 
         try:
-            self._read_all()
-        except socket.error:
-            self.error_bad_gateway()
-            logging.error("ERROR 3 - timeout when receiving body (%s)", str(e))  
-        
-    def _read_all(self):
-        try:
-            # This will read the while payload, taking care of content-length,
+            # This will read the whole payload, taking care of content-length,
             # chunked transfer-encoding etc.. The spy file will record the real
             # HTTP payload.
             self.read()
-        except socket.error:
-            self.error_bad_gateway()
-            
+        except httplib.IncompleteRead:
+            # XXX: Should this be a new error code?
+            raise ProxyError(ERR_CONN_DROPPED)
+        except socket.error, e:
+            raise ProxyError(ERR_TIMEOUT_BODY, str(e))
+        
     def cleanup(self):
         self.buf.close()
         
@@ -289,9 +303,35 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
 class ProxyHTTPConnection(httplib.HTTPConnection):
     """HTTPConnection wrapper to add extra hooks to handle errors.
     """
-    response_class = ProxyHTTPResponse
+
+    def __init__(self, host, timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
+        try:
+            httplib.HTTPConnection.__init__(self, host, timeout=timeout)
+        except httplib.InvalidURL, e:
+            raise ProxyError(ERR_INVALID_URL, str(e))
+
+        self.url = None
+        self.response_class = lambda *a, **kw: ProxyHTTPResponse(self.url, *a, **kw)
 
     def connect(self):
-        # Add . to the hostname to tell the DNS server to not use the search domain
-        ip = socket.gethostbyname(self.host + ".")
-        self.sock = socket.create_connection((ip, self.port), self.timeout)
+        try:
+            # Add . to the hostname to tell the DNS server to not use the search domain
+            ip = socket.gethostbyname(self.host + ".")
+            self.sock = socket.create_connection((ip, self.port), self.timeout)
+        except socket.gaierror, e:
+            raise ProxyError(ERR_INVALID_DOMAIN, str(e))
+        except socket.timeout, e:
+            raise ProxyError(ERR_TIMEOUT_CONNECT, str(e))
+        except socket.error, e:
+            msg = e.strerror or ""
+            if msg.lower() == "connection refused":
+                raise ProxyError(ERR_CONN_REFUSED, str(e))
+            else:
+                raise ProxyError(ERR_CONN_MISC, str(e))
+
+    def request(self, method, url, body=None, headers={}):
+        self.url = url
+        try:
+            httplib.HTTPConnection.request(self, method, url, body=body, headers=headers)
+        except socket.error, e:
+            raise ProxyError(ERR_CONN_MISC, str(e))
