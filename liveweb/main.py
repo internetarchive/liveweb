@@ -15,4 +15,9 @@ if not os.path.exists(config.storage['directory']):
     os.makedirs(config.storage['directory'])
 
 from . import webapp
+
+# Intialize
+webapp.setup()
+
 application = webapp.application
+

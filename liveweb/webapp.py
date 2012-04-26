@@ -11,11 +11,15 @@ from . import config
 from . import file_pool
 from . import cache
 
+pool = None
+_cache = None
 
-# File pool to store arc files
-pool = file_pool.FilePool(**config.storage)
-
-_cache = cache.create(**config.cache)
+def setup():
+    """This is called from main to initialize the requires globals.
+    """
+    global pool, _cache
+    pool = file_pool.File_Pool(**config.storage)
+    _cache = cache.create(**config.cache)
 
 class application:
     """WSGI application for liveweb proxy.
