@@ -123,11 +123,11 @@ def test_errors(monkeypatch):
     f(proxy.ERR_INVALID_URL, "http://localhost:foo/")
     f(proxy.ERR_INVALID_DOMAIN, "http://invalid.com2/")
 
-    # archive.org refuses connections on unused ports 
-    f(proxy.ERR_CONN_REFUSED, "http://archive.org:1234")
+    # nothing will be running at localhost:1234, so connection will be refused
+    f(proxy.ERR_CONN_REFUSED, "http://localhost:1234/")
 
     # www.google.com drops the TCP packets on unsed ports, resulting in timeout
-    f(proxy.ERR_TIMEOUT_CONNECT, "http://www.google.com:1234")
+    f(proxy.ERR_TIMEOUT_CONNECT, "http://www.google.com:1234/")
   
     f(proxy.ERR_TIMEOUT_HEADERS, "http://httpbin.org/delay/10")
 
