@@ -23,11 +23,16 @@ class RedisCache:
         :param expire_time: amount of time in seconds after which the entry in the cache should expire, defaults to one hour.
         """
         self.expire_time = params.pop('expire_time', 3600) # default timeout
+
+        # max size of record that can be cached. Defaults to 100K.
+        self.max_record_size = params.pop('max_record_size', 100*1024)
+
         self.redis_client = redis.StrictRedis(**params)
 
     def get(self, url):
         data = self.redis_client.get(url)
         if data is not None:
+            logging.info("cache hit - %s", url)
             return Record(filename=None,
                           offset=0, 
                           content_length=len(data),
@@ -39,8 +44,7 @@ class RedisCache:
         :param url: URL for which the response is being cached
         :param record: record to be cached
         """
-        maxsize = 1024 * 100
-        if record.content_length <= maxsize:
+        if record.content_length <= self.max_record_size:
             data = record.read_all()
             self.redis_client.setex(url, self.expire_time, data)
 
@@ -59,8 +63,8 @@ class SqliteCache:
               "    clen int" +
               ")")
 
-    def __init__(self, db):
-        self.dbname = db
+    def __init__(self, database):
+        self.database = database
         self.create_table()
 
     def create_table(self):
@@ -73,8 +77,8 @@ class SqliteCache:
         return tables
 
     def query(self, query, args=[], commit=False):
-        logging.info("query: %r - %r", query, args)
-        conn = sqlite3.connect(self.dbname)
+        logging.debug("query: %r - %r", query, args)
+        conn = sqlite3.connect(self.database)
         cursor = conn.execute(query, args)
         rows = cursor.fetchall()
         if commit:
@@ -86,11 +90,11 @@ class SqliteCache:
     def get(self, url):
         rows = self.query("SELECT filename, offset, clen FROM cache WHERE url=?", [url])
         if rows:
-            logging.info("cache hit")
+            logging.info("cache hit - %s", url)
             filepath, offset, content_length = rows[0]
             return Record(filepath, offset=offset, content_length=content_length)
         else:
-            logging.info("cache miss")
+            logging.info("cache miss - %s", url)
 
     def set(self, url, record):
         self.query("INSERT INTO cache (url, filename, offset, clen) VALUES (?, ?, ?, ?)", 
