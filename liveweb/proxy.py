@@ -112,7 +112,7 @@ def _urlopen(url):
     }
     type, host, selector = split_type_host(url)
 
-    conn = ProxyHTTPConnection(host, timeout=config.timeout)
+    conn = ProxyHTTPConnection(host, url=url, timeout=config.timeout)
     conn.request("GET", selector, headers=headers)
     return conn.getresponse()
 
@@ -303,13 +303,13 @@ class ProxyHTTPConnection(httplib.HTTPConnection):
     """HTTPConnection wrapper to add extra hooks to handle errors.
     """
 
-    def __init__(self, host, timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
+    def __init__(self, host, url, timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
         try:
             httplib.HTTPConnection.__init__(self, host, timeout=timeout)
         except httplib.InvalidURL, e:
             raise ProxyError(ERR_INVALID_URL, str(e))
 
-        self.url = None
+        self.url = url
         self.response_class = lambda *a, **kw: ProxyHTTPResponse(self.url, *a, **kw)
 
     def connect(self):
@@ -329,7 +329,6 @@ class ProxyHTTPConnection(httplib.HTTPConnection):
                 raise ProxyError(ERR_CONN_MISC, str(e))
 
     def request(self, method, url, body=None, headers={}):
-        self.url = url
         try:
             httplib.HTTPConnection.request(self, method, url, body=body, headers=headers)
         except socket.error, e:
