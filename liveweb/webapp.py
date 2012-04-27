@@ -18,7 +18,7 @@ def setup():
     """This is called from main to initialize the requires globals.
     """
     global pool, _cache
-    pool = file_pool.File_Pool(**config.storage)
+    pool = file_pool.FilePool(**config.storage)
     _cache = cache.create(**config.cache)
 
 class application:
