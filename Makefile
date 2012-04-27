@@ -23,6 +23,8 @@ UWSGI=$(VENV)/bin/uwsgi -H$(VENV)
 NPROCS=1
 NTHREADS=10
 
+.PHONY: docs
+
 run:
 	$(UWSGI) -M -i -l1024 -p $(NPROCS) --threads $(NTHREADS) --http ${LIVEWEB_ADDRESS} --wsgi liveweb.main --pyargv $(CONFIG)
 
@@ -38,3 +40,5 @@ test:
 wayback:
 	$(UWSGI) --http ${WAYBACK_ADDRESS} --wsgi liveweb.tools.wayback --pyargv $(LIVEWEB_ADDRESS)
 
+docs:
+	cd docs && make html
