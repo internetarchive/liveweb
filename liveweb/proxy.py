@@ -96,8 +96,7 @@ def urlopen(url):
     try:
         return _urlopen(url)
     except ProxyError, e:
-        logging.error(str(e))
-
+        logging.error("%s - %s", str(e), url)
         response = ProxyHTTPResponse(url, None, method="GET")
         response.error_bad_gateway()
         return response

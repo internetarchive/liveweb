@@ -2,7 +2,9 @@ import os
 import sys
 import logging
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(threadName)s [%(levelname)s] %(message)s")
+logging.basicConfig(level=logging.INFO, 
+                    format="%(asctime)s %(threadName)18s %(levelname)5s: %(message)s",
+                    datefmt="%Y-%m-%d %H:%M:%S")
 
 from . import config 
 
