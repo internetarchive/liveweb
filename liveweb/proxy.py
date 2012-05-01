@@ -321,9 +321,7 @@ class ProxyHTTPConnection(httplib.HTTPConnection):
 
     def connect(self):
         try:
-            # Add . to the hostname to tell the DNS server to not use the search domain
-            ip = socket.gethostbyname(self.host + ".")
-            self.sock = socket.create_connection((ip, self.port), self.timeout)
+            self.sock = socket.create_connection((self.host, self.port), self.timeout)
         except socket.gaierror, e:
             # -3: Temporary failure in name resolution
             # Happens when DNS request is timeout
