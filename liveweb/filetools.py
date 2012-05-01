@@ -61,6 +61,16 @@ class SpyFile:
         self.current_size += len(text)
         self._check_size()
         return text
+
+    def readlines(self):
+        return list(self)
+
+    def __iter__(self):
+        while True:
+            line = self.readline()
+            if not line:
+                break
+            yield line
     
     def close(self):
         self.fileobj.close()

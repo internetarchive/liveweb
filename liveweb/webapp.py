@@ -5,6 +5,8 @@ from cStringIO import StringIO
 import gzip
 import logging
 
+from warc.arc import ARCRecord
+
 from . import proxy
 from . import errors
 from . import config
@@ -63,15 +65,9 @@ class application:
         try:
             self.parse_request()
 
-            record = _cache.get(self.url)
-            if record is None:
-                response = proxy.urlopen(self.url)
-                record = response.write_arc(pool)
-                _cache.set(self.url, record)
-
-            # XXX-Anand: http_passthrough doesn't work on cache hit
+            record = self.get_record()
             if config.http_passthrough:
-                return self.proxy_response(response)
+                return self.proxy_response(record)
             else:
                 return self.success(record.content_length, record.content_iter)
         except errors.BadURL:
@@ -91,14 +87,36 @@ class application:
                 # is gone. 
                 # This may create trouble on windoz.
                 response.cleanup()
-            
-    def proxy_response(self, response):
+
+    def get_record(self):
+        """Fecthes the Record object from cache or constructs from web.
+        """
+        record = _cache.get(self.url)
+        if record is None:
+            response = proxy.urlopen(self.url)
+            record = response.write_arc(pool)
+            _cache.set(self.url, record)
+        return record
+
+    def proxy_response(self, record):
         """Send the response data as it is """
+        # TODO: This is very inefficient. Improve.
+
+        # Now we only have the ARC record data. 
+        record_payload = record.read_all()
+        record_payload = gzip.GzipFile(fileobj=StringIO(record_payload)).read()        
+        arc = ARCRecord.from_string(record_payload, version=1)
+
+        # Create a FakeSocket and read HTTP headers and payload.
+        sock = proxy._FakeSocket(StringIO(arc.payload))
+        response = proxy.ProxyHTTPResponse(self.url, sock)
+        response.begin()
+
         status = "%d %s" % (response.status, response.reason)
         headers = response.getheaders()
         self.start_response(status, headers)
         return response.get_payload()
-            
+    
     def success(self, clen, data):
         status = '200 OK'
         response_headers = [
