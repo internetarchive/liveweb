@@ -1,6 +1,12 @@
 """Web app to simulate various error conditions.
 """
 
+import sys, os
+from os.path import dirname, pardir
+
+# insert liveweb in sys.path
+sys.path.insert(0, os.path.join(dirname(__file__), pardir, pardir))
+
 from liveweb.tools.wsgiapp import wsgiapp
 import time
 
