@@ -21,6 +21,10 @@ class wsgiapp:
         
         self.status = "200 OK"
         self._headers = {}
+
+    def input(self):
+        tokens = self.environ.get("QUERY_STRING", "").split("&")
+        return dict(kv.split("=") for kv in tokens)
         
     def header(self, name, value):
         self._headers[name.title()] = value
@@ -55,6 +59,7 @@ class wsgiapp:
         return self.notfound()
 
     def notfound(self):
-        self.start("404 Not Found", {"Content-Type": "text/html"}.items())
+        self.status = "404 Not Found"
+        self.headers = {"Content-Type": "text/html"}.items()
         return ["Not Found"]
 
