@@ -10,6 +10,7 @@ import urllib
 from cStringIO import StringIO
 import tempfile
 import sys
+import errno
 
 from warc import arc
 from warc.utils import FilePart
@@ -34,7 +35,12 @@ class ProxyError(Exception):
     def __init__(self, error, cause=None):
         self.errcode, self.errmsg = error
 
-        msg = "E%02d: %s (%s)" % (self.errcode, self.errmsg, cause)
+        if isinstance(cause, socket.error) and cause.errno:
+            msg = "%s: %s" % (errno.errorcode.get(cause.errno, cause.errno), cause.strerror)
+        else:
+            msg = str(cause)
+
+        msg = "E%02d: %s (%s)" % (self.errcode, self.errmsg, msg)
         Exception.__init__(self, msg)
 
 class Record:
@@ -74,6 +80,7 @@ class Record:
 
     def __iter__(self):
         return iter(self.content_iter)
+
 
 def split_type_host(url):
     """Returns (type, host, selector) from the url.
@@ -307,7 +314,7 @@ class ProxyHTTPConnection(httplib.HTTPConnection):
         try:
             httplib.HTTPConnection.__init__(self, host, timeout=timeout)
         except httplib.InvalidURL, e:
-            raise ProxyError(ERR_INVALID_URL, str(e))
+            raise ProxyError(ERR_INVALID_URL, e)
 
         self.url = url
         self.response_class = lambda *a, **kw: ProxyHTTPResponse(self.url, *a, **kw)
@@ -318,18 +325,18 @@ class ProxyHTTPConnection(httplib.HTTPConnection):
             ip = socket.gethostbyname(self.host + ".")
             self.sock = socket.create_connection((ip, self.port), self.timeout)
         except socket.gaierror, e:
-            raise ProxyError(ERR_INVALID_DOMAIN, str(e))
+            raise ProxyError(ERR_INVALID_DOMAIN, e)
         except socket.timeout, e:
-            raise ProxyError(ERR_TIMEOUT_CONNECT, str(e))
+            raise ProxyError(ERR_TIMEOUT_CONNECT, e)
         except socket.error, e:
             msg = e.strerror or ""
-            if msg.lower() == "connection refused":
-                raise ProxyError(ERR_CONN_REFUSED, str(e))
+            if e.errno == errno.ECONNREFUSED:
+                raise ProxyError(ERR_CONN_REFUSED, e)
             else:
-                raise ProxyError(ERR_CONN_MISC, str(e))
+                raise ProxyError(ERR_CONN_MISC, e)
 
     def request(self, method, url, body=None, headers={}):
         try:
             httplib.HTTPConnection.request(self, method, url, body=body, headers=headers)
         except socket.error, e:
-            raise ProxyError(ERR_CONN_MISC, str(e))
+            raise ProxyError(ERR_CONN_MISC, e)
