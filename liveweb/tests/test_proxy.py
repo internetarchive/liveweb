@@ -2,6 +2,25 @@ from .. import proxy, config
 
 from cStringIO import StringIO
 import datetime
+import subprocess
+import os
+import urllib
+import time
+
+def pytest_funcarg__webtest(request):
+    dirname = os.path.dirname(__file__)
+    path = os.path.join(dirname, "webtest.py")
+    port = 9876
+
+    p = subprocess.Popen(['python', path, str(port)])
+    request.addfinalizer(p.kill)
+    time.sleep(0.2)
+
+    # Return an object with url and port atrributes
+    x = lambda: None
+    x.url = "http://127.0.0.1:%d" % port
+    x.port = port
+    return x
 
 class TestRecord:
     def test_read_all(self):
@@ -108,7 +127,7 @@ class TestProxyResponse:
         assert str(arc.header) == "http://example.com/hello 0.0.0.0 20100908070605 text/plain %d" % len(http_payload)
 
 
-def test_errors(monkeypatch):
+def test_errors(monkeypatch, webtest):
     def f(err, url):
         try:
             proxy._urlopen(url)
@@ -116,7 +135,6 @@ def test_errors(monkeypatch):
             assert (e.errcode, e.errmsg) == err
         else:
             assert False, "Excepted ProxyError 'E%02d: %s', none raised" % err
-
 
     monkeypatch.setattr(config, "timeout", 1.0)
 
@@ -128,10 +146,10 @@ def test_errors(monkeypatch):
 
     # www.google.com drops the TCP packets on unsed ports, resulting in timeout
     f(proxy.ERR_TIMEOUT_CONNECT, "http://www.google.com:1234/")
-  
-    f(proxy.ERR_TIMEOUT_HEADERS, "http://httpbin.org/delay/10")
 
-    f(proxy.ERR_CONN_DROPPED, "http://home.us.archive.org/~anand/liveweb-tests/drop.php")
+    f(proxy.ERR_TIMEOUT_HEADERS, webtest.url + "/delay-headers/2")
+
+    #f(proxy.ERR_CONN_DROPPED, webtest.url + "/drop")
 
 """
 [X] ERR_INVALID_URL = 10, "invalid URL"
@@ -144,3 +162,6 @@ def test_errors(monkeypatch):
 [X] ERR_TIMEOUT_HEADERS = 41, "timeout when reading headers"
 [ ] ERR_TIMEOUT_BODY = 42, "timeout when reading body"
 """
+
+def test_webtest(webtest):
+    assert urllib.urlopen(webtest.url + "/echo/hello").read() == "hello"
