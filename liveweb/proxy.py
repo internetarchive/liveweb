@@ -325,7 +325,12 @@ class ProxyHTTPConnection(httplib.HTTPConnection):
             ip = socket.gethostbyname(self.host + ".")
             self.sock = socket.create_connection((ip, self.port), self.timeout)
         except socket.gaierror, e:
-            raise ProxyError(ERR_INVALID_DOMAIN, e)
+            # -3: Temporary failure in name resolution
+            # Happens when DNS request is timeout
+            if e.errno == -3:
+                raise ProxyError(ERR_DNS_TIMEOUT, e)
+            else:
+                raise ProxyError(ERR_INVALID_DOMAIN, e)
         except socket.timeout, e:
             raise ProxyError(ERR_TIMEOUT_CONNECT, e)
         except socket.error, e:
