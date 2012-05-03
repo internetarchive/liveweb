@@ -2,6 +2,8 @@
 Configuration
 =============
 
+.. _config_storage:
+
 storage
 -------
 
@@ -39,6 +41,8 @@ The description of the properties:
 
 Except ``directory``, all the other paramaters are optional with above
 specified values as defaults.
+
+.. _config_cache:
 
 cache
 -----
@@ -93,23 +97,82 @@ This is the default behaviour. Can be specified in config as::
 
     cache: null
 
+.. _config_user_agent:
+
 user_agent
 ----------
 
 Specifies the value of the ``User-Agent`` request header. Default
 value is ``ia_archiver(OS-Wayback)``.
 
-timeout
--------
+.. _config_timeout:
 
-Specifies the connection and read timeout in seconds.
+default_timeout
+---------------
+
+Specifies the default value for :ref:`connect_timeout`, :ref:`initial_data_timeout` and :ref:`read_timeout`.
+
+.. _config_dns_timeout:
+
+dns_timeout
+-----------
+
+Specifies the max amount of time can a DNS resolution can take.
+
+Python doesn't support a way to specify DNS timeout. On Linux, the dns
+timeout can be specified via the `RES_OPTIONS` environment
+variable. This enviroment variable is set at the startup of the
+application based on this config setting.
+
+If unspecified, the system default behavior is used.
+
+See `resolv.conf man page`_ for more details.
+
+.. _resolv.conf man page: http://manpages.ubuntu.com/manpages/lucid/en/man5/resolv.conf.5.html
+
+.. _config_connect_timeout:
+
+connect_timeout
+---------------
+
+Specifies the connect timeout in seconds. Connections that take longer
+to establish will be aborted.
+
+.. _config_initial_data_timeout:
+
+initial_data_timeout
+--------------------
+
+Specifies the maximum time allowed before receiving initial data (HTTP headers) from the remote server.
+
+.. _config_read_timeout:
+
+read_timeout
+------------
+
+Specifies the read timeout in seconds. This indicates the idle
+time. If no data is received for more than this time, the request will
+fail.
+
+If unspecified, this will default to the ``connect_timeout``.
+
+max_request_time
+----------------
+
+Specifies the total amout of time a HTTP request can take. If it takes
+more than this, the current request will fail.
+
+max_response_size
+-----------------
+
+Specifies the maximum allowed size of response.
 
 archive_format
 --------------
 
 Specified the archive format. Can be either ``arc`` or ``warc``.
 
-.. note::
+.. warning::
 
    As of now only ``arc`` is supported.
 
@@ -117,21 +180,3 @@ http_passthrough
 ----------------
 
 This is a boolean parameter, setting it to ``true`` will make it work like a http proxy with archiving. Useful for testing and recording personal browsing.
-
-.. note::
-
-   As of now, ``http_passthrough`` works only when no caching is used.
-
-Other Settings
---------------
-
-The application depends on the system for DNS resolution and it is not
-possible to specify dns timeouts in the configuration. However, it can
-be achieved by specifying appropriate timeout value in ``RES_OPTIONS``
-environment variable. ::
-
-    export RES_OPTIONS="timeout:1 attempts:1"
-
-See `resolv.conf man page`_ for more details.
-
-.. _resolv.conf man page: http://manpages.ubuntu.com/manpages/lucid/en/man5/resolv.conf.5.html
