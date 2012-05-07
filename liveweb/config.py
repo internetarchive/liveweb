@@ -16,6 +16,11 @@ max_cacheable_size = 10 * M
 # timeout in seconds
 timeout = 60
 
+dns_timeout = None
+connect_timeout = None
+initial_data_timeout = None
+read_timeout = None
+
 # can be either arc or warc
 archive_format = "arc"
 
@@ -28,7 +33,15 @@ cache = {"type": None}
 storage = {
     "directory": "records"
 }
-    
+
+def get_connect_timeout():
+    return connect_timeout or timeout
+
+def get_initial_data_timeout():
+    return initial_data_timeout or timeout
+
+def get_read_timeout():
+    return read_timeout or timeout
 
 def _parse_size(size):
     size = str(size).upper().replace(" ", "")

@@ -7,21 +7,6 @@ import os
 import urllib
 import time
 
-def pytest_funcarg__webtest(request):
-    dirname = os.path.dirname(__file__)
-    path = os.path.join(dirname, "webtest.py")
-    port = 9876
-
-    p = subprocess.Popen(['python', path, str(port)])
-    request.addfinalizer(p.kill)
-    time.sleep(0.2)
-
-    # Return an object with url and port atrributes
-    x = lambda: None
-    x.url = "http://127.0.0.1:%d" % port
-    x.port = port
-    return x
-
 class TestRecord:
     def test_read_all(self):
         content = "helloworld" * 100
@@ -127,8 +112,9 @@ class TestProxyResponse:
         assert str(arc.header) == "http://example.com/hello 0.0.0.0 20100908070605 text/plain %d" % len(http_payload)
 
 
-def test_errors(monkeypatch, webtest):
-    def f(err, url):
+
+class TestErrors:
+    def verify(self, err, url):
         try:
             proxy._urlopen(url)
         except proxy.ProxyError, e:
@@ -136,32 +122,41 @@ def test_errors(monkeypatch, webtest):
         else:
             assert False, "Excepted ProxyError 'E%02d: %s', none raised" % err
 
-    monkeypatch.setattr(config, "timeout", 1.0)
 
-    f(proxy.ERR_INVALID_URL, "http://localhost:foo/")
-    f(proxy.ERR_INVALID_DOMAIN, "http://invalid.com2/")
+    def test_invalid_url(self):
+        self.verify(proxy.ERR_INVALID_URL, "http://localhost:foo/")
+    
+    def test_invalid_domain(self):
+        self.verify(proxy.ERR_INVALID_DOMAIN, "http://invalid.com2/")
 
-    # nothing will be running at localhost:1234, so connection will be refused
-    f(proxy.ERR_CONN_REFUSED, "http://localhost:1234/")
+    def test_conn_refused(self):
+        # nothing will be running at localhost:1234, so connection will be refused
+        self.verify(proxy.ERR_CONN_REFUSED, "http://localhost:1234/")
 
-    # www.google.com drops the TCP packets on unsed ports, resulting in timeout
-    f(proxy.ERR_TIMEOUT_CONNECT, "http://www.google.com:1234/")
+    def test_conn_timeout(self, monkeypatch):
+        monkeypatch.setattr(config, "timeout", 0.5)
+        monkeypatch.setattr(config, "connect_timeout", 0.5)
+        # www.google.com drops the TCP packets on unsed ports, resulting in timeout
+        self.verify(proxy.ERR_CONN_TIMEOUT, "http://www.google.com:1234/")
 
-    f(proxy.ERR_TIMEOUT_HEADERS, webtest.url + "/delay-headers/2")
+    def test_initial_data_timeout(self, monkeypatch, webtest):
+        # This should not fail
+        proxy._urlopen(webtest.url + "/delay-headers/0.2")
 
-    #f(proxy.ERR_CONN_DROPPED, webtest.url + "/drop")
+        # But when we set the initial_data_timeout, it should fail
+        monkeypatch.setattr(config, "initial_data_timeout", 0.1)
+        self.verify(proxy.ERR_INITIAL_DATA_TIMEOUT, webtest.url + "/delay-headers/0.2")
 
-"""
-[X] ERR_INVALID_URL = 10, "invalid URL"
-[X] ERR_INVALID_DOMAIN = 20, "invalid domain"
-[ ] ERR_DNS_TIMEOUT = 21, "dns timeout"
-[X] ERR_CONN_REFUSED = 30, "connection refused"
-[X] ERR_CONN_DROPPED = 31, "connection dropped"
-[ ] ERR_CONN_MISC = 39, "connection error"
-[X] ERR_TIMEOUT_CONNECT = 40, "timeout when connecting"
-[X] ERR_TIMEOUT_HEADERS = 41, "timeout when reading headers"
-[ ] ERR_TIMEOUT_BODY = 42, "timeout when reading body"
-"""
+    def test_read_timeout(self, monkeypatch, webtest):
+        # This should not fail
+        proxy._urlopen(webtest.url + "/delay/0.2?repeats=1")
+
+        # But when we set the initial_data_timeout, it should fail
+        monkeypatch.setattr(config, "read_timeout", 0.1)
+        self.verify(proxy.ERR_READ_TIMEOUT, webtest.url + "/delay/0.2?repeats=1")
+
+    def test_conn_dropped(self, webtest):
+        self.verify(proxy.ERR_CONN_DROPPED, webtest.url + "/drop")
 
 def test_webtest(webtest):
     assert urllib.urlopen(webtest.url + "/echo/hello").read() == "hello"

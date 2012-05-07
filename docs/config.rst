@@ -124,7 +124,7 @@ timeout can be specified via the `RES_OPTIONS` environment
 variable. This enviroment variable is set at the startup of the
 application based on this config setting.
 
-If unspecified, the system default behavior is used.
+If unspecified, the DNS timeout is decided by the system default behavior.
 
 See `resolv.conf man page`_ for more details.
 

@@ -21,15 +21,24 @@ MEG = 1024 * 1024
 
 EMPTY_BUFFER = filetools.MemFile()
 
+# 1x - bad input
 ERR_INVALID_URL = 10, "invalid URL"
+
+# 2x - DNS errors 
 ERR_INVALID_DOMAIN = 20, "invalid domain"
 ERR_DNS_TIMEOUT = 21, "dns timeout"
+
+# 3x - connction errors
 ERR_CONN_REFUSED = 30, "connection refused"
-ERR_CONN_DROPPED = 31, "connection dropped"
-ERR_CONN_MISC = 39, "connection error"
-ERR_TIMEOUT_CONNECT = 40, "timeout when connecting"
-ERR_TIMEOUT_HEADERS = 41, "timeout when reading headers"
-ERR_TIMEOUT_BODY = 42, "timeout when reading body"
+ERR_CONN_TIMEOUT = 31, "connection timedout"
+ERR_INITIAL_DATA_TIMEOUT = 32, "initial data timeout"
+ERR_READ_TIMEOUT = 33, "read timeout"
+ERR_CONN_DROPPED = 34, "connection dropped"
+ERR_CONN_MISC = 39, "unexpected connection error"
+
+# 4x - resource errors
+ERR_RESPONSE_TOO_BIG = 40, "response too big"
+ERR_REQUEST_TIMEOUT = 41, "request took too long to finish"
 
 class ProxyError(Exception):
     def __init__(self, error, cause=None):
@@ -119,7 +128,7 @@ def _urlopen(url):
     }
     type, host, selector = split_type_host(url)
 
-    conn = ProxyHTTPConnection(host, url=url, timeout=config.timeout)
+    conn = ProxyHTTPConnection(host, url=url)
     conn.request("GET", selector, headers=headers)
     return conn.getresponse()
 
@@ -135,6 +144,9 @@ class _FakeSocket:
     def getpeername(self):
         return ("0.0.0.0", 80)
 
+    def settimeout(self, timeout):
+        pass
+
 class ProxyHTTPResponse(httplib.HTTPResponse):
     """HTTPResponse wrapper to record the HTTP payload.
     
@@ -143,8 +155,8 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
     DEFAULT_CONTENT_TYPE = "unk"
     
     def __init__(self, url, sock, *a, **kw):
-        sock = sock or _FakeSocket()
-        httplib.HTTPResponse.__init__(self, sock, *a, **kw)
+        self.sock = sock or _FakeSocket()
+        httplib.HTTPResponse.__init__(self, self.sock, *a, **kw)
         
         self.url = url
         self.remoteip = sock.getpeername()[0]
@@ -162,22 +174,24 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
         self.buf = self.fp.buf
         
         try:
+            self.sock.settimeout(config.get_initial_data_timeout())
             httplib.HTTPResponse.begin(self)
             self.content_type = self.getheader("content-type", self.DEFAULT_CONTENT_TYPE).split(';')[0]
             self.header_offset = self.buf.tell()
         except socket.error, e:
-            raise ProxyError(ERR_TIMEOUT_HEADERS, str(e))
+            raise ProxyError(ERR_INITIAL_DATA_TIMEOUT, str(e))
 
         try:
             # This will read the whole payload, taking care of content-length,
             # chunked transfer-encoding etc.. The spy file will record the real
             # HTTP payload.
+            self.sock.settimeout(config.get_read_timeout())
             self.read()
         except httplib.IncompleteRead:
             # XXX: Should this be a new error code?
             raise ProxyError(ERR_CONN_DROPPED)
         except socket.error, e:
-            raise ProxyError(ERR_TIMEOUT_BODY, str(e))
+            raise ProxyError(ERR_READ_TIMEOUT, str(e))
         
     def cleanup(self):
         self.buf.close()
@@ -310,9 +324,9 @@ class ProxyHTTPConnection(httplib.HTTPConnection):
     """HTTPConnection wrapper to add extra hooks to handle errors.
     """
 
-    def __init__(self, host, url, timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
+    def __init__(self, host, url):
         try:
-            httplib.HTTPConnection.__init__(self, host, timeout=timeout)
+            httplib.HTTPConnection.__init__(self, host)
         except httplib.InvalidURL, e:
             raise ProxyError(ERR_INVALID_URL, e)
 
@@ -321,7 +335,7 @@ class ProxyHTTPConnection(httplib.HTTPConnection):
 
     def connect(self):
         try:
-            self.sock = socket.create_connection((self.host, self.port), self.timeout)
+            self.sock = socket.create_connection((self.host, self.port), config.get_connect_timeout())
         except socket.gaierror, e:
             # -3: Temporary failure in name resolution
             # Happens when DNS request is timeout
@@ -330,7 +344,7 @@ class ProxyHTTPConnection(httplib.HTTPConnection):
             else:
                 raise ProxyError(ERR_INVALID_DOMAIN, e)
         except socket.timeout, e:
-            raise ProxyError(ERR_TIMEOUT_CONNECT, e)
+            raise ProxyError(ERR_CONN_TIMEOUT, e)
         except socket.error, e:
             msg = e.strerror or ""
             if e.errno == errno.ECONNREFUSED:

@@ -41,8 +41,10 @@ class application(wsgiapp):
     def GET_delay(self, delay):
         """Emits 10 numbers with delay seconds between each.
         """
+        i = self.input()
+        repeats = int(i.get("repeats", 10))
         delay = float(delay)
-        for i in range(10):
+        for i in range(repeats):
             yield str(i) + "\n"
             time.sleep(delay)
 
