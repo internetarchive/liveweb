@@ -168,6 +168,12 @@ class SocketWrapper:
         data = self._sock.recv(bufsize)
         self._bytes_read += len(data)
 
+        # TODO: optimize this
+        # Each time.time() call takes about 0.35 ns. 
+        # For reading headers, this function is called once of each byte.
+        # Assuming that the headers is 1000 bytes long, it will add an overhead of 0.35ms.
+        # We should optimize this if we care about half-a-milli-second.
+        
         if self._max_time is not None and time.time() - self._start_time > self._max_time:
             raise ProxyError(ERR_REQUEST_TIMEOUT)
 
@@ -177,7 +183,6 @@ class SocketWrapper:
         return data
 
     def makefile(self, mode='r', bufsize=-1):
-        logging.info("SocketWrapper.makefile")
         return socket._fileobject(self, mode, bufsize)
 
 class ProxyHTTPResponse(httplib.HTTPResponse):
