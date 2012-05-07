@@ -7,6 +7,8 @@ import os
 import urllib
 import time
 
+import pytest
+
 class TestRecord:
     def test_read_all(self):
         content = "helloworld" * 100
@@ -112,6 +114,48 @@ class TestProxyResponse:
         assert str(arc.header) == "http://example.com/hello 0.0.0.0 20100908070605 text/plain %d" % len(http_payload)
 
 
+class FakeSocket:
+    def __init__(self, content, delay_per_byte=0):
+        self.content = content
+        self.delay_per_byte = delay_per_byte
+
+    def recv(self, size):
+        data = self.content[:size]
+        self.content = self.content[size:]
+
+        if self.delay_per_byte:
+            time.sleep(len(data) * self.delay_per_byte)
+
+        return data
+
+    def dummy(self, *a, **kw):
+        pass
+    
+class TestSocketWrapper:
+    def test_max_time(self):
+        _sock = FakeSocket("a" * 1000, delay_per_byte=0.001)
+        sock = proxy.SocketWrapper(_sock, max_time=0.1)
+        sock.recv(90) # .09 seconds
+
+        with pytest.raises(proxy.ProxyError) as excinfo:
+            sock.recv(20) # this should fail
+
+        e = excinfo.value
+        assert (e.errcode, e.errmsg) == proxy.ERR_REQUEST_TIMEOUT
+
+    def test_max_size(self):
+        _sock = FakeSocket("a" * 1200)
+        sock = proxy.SocketWrapper(_sock, max_size=1001)
+
+        # read 1000 bytes
+        for i in range(10):
+            sock.recv(100)
+
+        with pytest.raises(proxy.ProxyError) as excinfo:
+            sock.recv(100) # this should fail
+
+        e = excinfo.value
+        assert (e.errcode, e.errmsg) == proxy.ERR_RESPONSE_TOO_BIG
 
 class TestErrors:
     def verify(self, err, url):
@@ -121,7 +165,6 @@ class TestErrors:
             assert (e.errcode, e.errmsg) == err
         else:
             assert False, "Excepted ProxyError 'E%02d: %s', none raised" % err
-
 
     def test_invalid_url(self):
         self.verify(proxy.ERR_INVALID_URL, "http://localhost:foo/")

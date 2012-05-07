@@ -11,6 +11,7 @@ from cStringIO import StringIO
 import tempfile
 import sys
 import errno
+import time
 
 from warc import arc
 from warc.utils import FilePart
@@ -147,6 +148,38 @@ class _FakeSocket:
     def settimeout(self, timeout):
         pass
 
+class SocketWrapper:
+    """The socket.socket class doesn't have a way to enforce max-time and max-size limits.
+
+    This extends the socket functionality by adding those constraints.
+    """
+    def __init__(self, sock, max_time=None, max_size=None):
+        self._sock = sock
+        self._max_time = max_time
+        self._max_size = max_size
+        
+        self._start_time = time.time()
+        self._bytes_read = 0
+
+    def __getattr__(self, name):
+        return getattr(self._sock, name)
+
+    def recv(self, bufsize):
+        data = self._sock.recv(bufsize)
+        self._bytes_read += len(data)
+
+        if self._max_time is not None and time.time() - self._start_time > self._max_time:
+            raise ProxyError(ERR_REQUEST_TIMEOUT)
+
+        if self._max_size is not None and self._bytes_read > self._max_size:
+            raise ProxyError(ERR_RESPONSE_TOO_BIG)
+
+        return data
+
+    def makefile(self, mode='r', bufsize=-1):
+        logging.info("SocketWrapper.makefile")
+        return socket._fileobject(self, mode, bufsize)
+
 class ProxyHTTPResponse(httplib.HTTPResponse):
     """HTTPResponse wrapper to record the HTTP payload.
     
@@ -159,7 +192,7 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
         httplib.HTTPResponse.__init__(self, self.sock, *a, **kw)
         
         self.url = url
-        self.remoteip = sock.getpeername()[0]
+        self.remoteip = self.sock.getpeername()[0]
         self.content_type = self.DEFAULT_CONTENT_TYPE
         self.buf = EMPTY_BUFFER
         
@@ -335,7 +368,8 @@ class ProxyHTTPConnection(httplib.HTTPConnection):
 
     def connect(self):
         try:
-            self.sock = socket.create_connection((self.host, self.port), config.get_connect_timeout())
+            sock = socket.create_connection((self.host, self.port), config.get_connect_timeout())
+            self.sock = SocketWrapper(sock, config.max_request_time, config.max_response_size)
         except socket.gaierror, e:
             # -3: Temporary failure in name resolution
             # Happens when DNS request is timeout

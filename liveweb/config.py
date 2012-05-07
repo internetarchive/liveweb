@@ -21,6 +21,10 @@ connect_timeout = None
 initial_data_timeout = None
 read_timeout = None
 
+max_request_time = None
+
+max_response_size = None
+
 # can be either arc or warc
 archive_format = "arc"
 
