@@ -42,15 +42,22 @@ ERR_RESPONSE_TOO_BIG = 40, "response too big"
 ERR_REQUEST_TIMEOUT = 41, "request took too long to finish"
 
 class ProxyError(Exception):
-    def __init__(self, error, cause=None):
+    def __init__(self, error, cause=None, data=None):
         self.errcode, self.errmsg = error
 
         if isinstance(cause, socket.error) and cause.errno:
-            msg = "%s: %s" % (errno.errorcode.get(cause.errno, cause.errno), cause.strerror)
+            cause_msg = "%s: %s" % (errno.errorcode.get(cause.errno, cause.errno), cause.strerror)
         else:
-            msg = str(cause)
+            cause_msg = cause and str(cause)
 
-        msg = "E%02d: %s (%s)" % (self.errcode, self.errmsg, msg)
+        msg = "E%02d: %s" % (self.errcode, self.errmsg)
+
+        if cause_msg:
+            msg += " " + cause_msg
+
+        if data:
+            msg += " %s" % data
+
         Exception.__init__(self, msg)
 
 class Record:
@@ -175,10 +182,10 @@ class SocketWrapper:
         # We should optimize this if we care about half-a-milli-second.
         
         if self._max_time is not None and time.time() - self._start_time > self._max_time:
-            raise ProxyError(ERR_REQUEST_TIMEOUT)
+            raise ProxyError(ERR_REQUEST_TIMEOUT, data={"max_time": self._max_time})
 
         if self._max_size is not None and self._bytes_read > self._max_size:
-            raise ProxyError(ERR_RESPONSE_TOO_BIG)
+            raise ProxyError(ERR_RESPONSE_TOO_BIG, data={"max_size": self._max_size})
 
         return data
 
@@ -217,7 +224,7 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
             self.content_type = self.getheader("content-type", self.DEFAULT_CONTENT_TYPE).split(';')[0]
             self.header_offset = self.buf.tell()
         except socket.error, e:
-            raise ProxyError(ERR_INITIAL_DATA_TIMEOUT, str(e))
+            raise ProxyError(ERR_INITIAL_DATA_TIMEOUT, str(e), {"initial_data_timeout": config.get_initial_data_timeout()})
 
         try:
             # This will read the whole payload, taking care of content-length,
@@ -229,7 +236,7 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
             # XXX: Should this be a new error code?
             raise ProxyError(ERR_CONN_DROPPED)
         except socket.error, e:
-            raise ProxyError(ERR_READ_TIMEOUT, str(e))
+            raise ProxyError(ERR_READ_TIMEOUT, str(e), data={"read_timeout": config.get_read_timeout()})
         
     def cleanup(self):
         self.buf.close()
@@ -379,11 +386,11 @@ class ProxyHTTPConnection(httplib.HTTPConnection):
             # -3: Temporary failure in name resolution
             # Happens when DNS request is timeout
             if e.errno == -3:
-                raise ProxyError(ERR_DNS_TIMEOUT, e)
+                raise ProxyError(ERR_DNS_TIMEOUT, e, data={"dns_timeout": config.dns_timeout})
             else:
                 raise ProxyError(ERR_INVALID_DOMAIN, e)
         except socket.timeout, e:
-            raise ProxyError(ERR_CONN_TIMEOUT, e)
+            raise ProxyError(ERR_CONN_TIMEOUT, e, data={"conn_timeout": config.get_connect_timeout()})
         except socket.error, e:
             msg = e.strerror or ""
             if e.errno == errno.ECONNREFUSED:
