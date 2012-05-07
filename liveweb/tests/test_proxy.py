@@ -158,13 +158,14 @@ class TestSocketWrapper:
         assert (e.errcode, e.errmsg) == proxy.ERR_RESPONSE_TOO_BIG
 
 class TestErrors:
+    def assert_error_code(self, excinfo, error):
+        e = excinfo.value
+        assert (e.errcode, e.errmsg) == error
+
     def verify(self, err, url):
-        try:
+        with pytest.raises(proxy.ProxyError) as excinfo:
             proxy._urlopen(url)
-        except proxy.ProxyError, e:
-            assert (e.errcode, e.errmsg) == err
-        else:
-            assert False, "Excepted ProxyError 'E%02d: %s', none raised" % err
+        self.assert_error_code(excinfo, err)
 
     def test_invalid_url(self):
         self.verify(proxy.ERR_INVALID_URL, "http://localhost:foo/")
@@ -201,5 +202,28 @@ class TestErrors:
     def test_conn_dropped(self, webtest):
         self.verify(proxy.ERR_CONN_DROPPED, webtest.url + "/drop")
 
+    def test_response_too_big(self, monkeypatch, webtest):
+        monkeypatch.setattr(config, "max_response_size", 1000)
+
+        # This should not fail
+        proxy._urlopen(webtest.url + "/echo/helloworld?repeats=50")
+
+        with pytest.raises(proxy.ProxyError) as excinfo:
+            proxy._urlopen(webtest.url + "/echo/helloworld?repeats=100")
+            
+        self.assert_error_code(excinfo, proxy.ERR_RESPONSE_TOO_BIG)
+
+    def test_request_took_too_long(self, monkeypatch, webtest):
+        monkeypatch.setattr(config, "max_request_time", 0.1)
+
+        # This should not fail
+        proxy._urlopen(webtest.url + "/echo/helloworld?repeats=5&delay=0.01")
+
+        with pytest.raises(proxy.ProxyError) as excinfo:
+            proxy._urlopen(webtest.url + "/echo/helloworld?repeats=20&delay=0.01")
+            
+        self.assert_error_code(excinfo, proxy.ERR_REQUEST_TIMEOUT)
+
+
 def test_webtest(webtest):
-    assert urllib.urlopen(webtest.url + "/echo/hello").read() == "hello"
+    assert urllib.urlopen(webtest.url + "/echo/hello").read() == "hello\n"

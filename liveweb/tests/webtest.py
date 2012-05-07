@@ -25,7 +25,16 @@ class application(wsgiapp):
 
     def GET_echo(self, name):
         self.header("Content-Type", "text/plain")
-        return [name]
+
+        i = self.input()
+        repeats = int(i.get("repeats", 1))
+        delay = float(i.get('delay', 0))
+        delim = i.get("delim", "\n")
+
+        for i in range(repeats):
+            yield name + delim
+            if delay:
+                time.sleep(delay)
 
     def GET_drop(self):
         self.header("Content-Type", "text/plain")

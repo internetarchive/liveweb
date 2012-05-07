@@ -24,7 +24,8 @@ class wsgiapp:
 
     def input(self):
         tokens = self.environ.get("QUERY_STRING", "").split("&")
-        return dict(kv.split("=") for kv in tokens)
+        print "input", tokens
+        return dict(kv.split("=") for kv in tokens if "=" in kv)
         
     def header(self, name, value):
         self._headers[name.title()] = value
