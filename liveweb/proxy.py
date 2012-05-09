@@ -225,6 +225,8 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
             self.header_offset = self.buf.tell()
         except socket.error, e:
             raise ProxyError(ERR_INITIAL_DATA_TIMEOUT, str(e), {"initial_data_timeout": config.get_initial_data_timeout()})
+        except httplib.HTTPException, e:
+            raise ProxyError(ERR_CONN_MISC, e)
 
         try:
             # This will read the whole payload, taking care of content-length,
@@ -233,8 +235,9 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
             self.sock.settimeout(config.get_read_timeout())
             self.read()
         except httplib.IncompleteRead:
-            # XXX: Should this be a new error code?
             raise ProxyError(ERR_CONN_DROPPED)
+        except httplib.HTTPException:
+            raise ProxyError(ERR_CONN_MISC, e)
         except socket.error, e:
             raise ProxyError(ERR_READ_TIMEOUT, str(e), data={"read_timeout": config.get_read_timeout()})
         
