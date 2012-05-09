@@ -5,6 +5,7 @@ import datetime
 import gzip
 import httplib
 import logging
+import os
 import socket
 import urllib
 from cStringIO import StringIO
@@ -40,6 +41,7 @@ ERR_CONN_MISC = 39, "unexpected connection error"
 # 4x - resource errors
 ERR_RESPONSE_TOO_BIG = 40, "response too big"
 ERR_REQUEST_TIMEOUT = 41, "request took too long to finish"
+
 
 class ProxyError(Exception):
     def __init__(self, error, cause=None, data=None):
@@ -77,7 +79,7 @@ class Record:
         self.content_iter = content_iter
 
         if self.content_length is None:
-            self.content_length = os.stat(filepath).st_size
+            self.content_length = os.stat(filename).st_size
 
         if self.content_iter is None:
             f = open(self.filename, 'rb')
