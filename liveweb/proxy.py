@@ -48,7 +48,7 @@ class ProxyError(Exception):
         if isinstance(cause, socket.error) and cause.errno:
             cause_msg = "%s: %s" % (errno.errorcode.get(cause.errno, cause.errno), cause.strerror)
         else:
-            cause_msg = cause and str(cause)
+            cause_msg = cause and ("%s: %s" % (cause.__class__.__name__, str(cause)))
 
         msg = "E%02d: %s" % (self.errcode, self.errmsg)
 
@@ -224,7 +224,7 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
             self.content_type = self.getheader("content-type", self.DEFAULT_CONTENT_TYPE).split(';')[0]
             self.header_offset = self.buf.tell()
         except socket.error, e:
-            raise ProxyError(ERR_INITIAL_DATA_TIMEOUT, str(e), {"initial_data_timeout": config.get_initial_data_timeout()})
+            raise ProxyError(ERR_INITIAL_DATA_TIMEOUT, e, {"initial_data_timeout": config.get_initial_data_timeout()})
         except httplib.HTTPException, e:
             raise ProxyError(ERR_CONN_MISC, e)
 
@@ -234,12 +234,12 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
             # HTTP payload.
             self.sock.settimeout(config.get_read_timeout())
             self.read()
-        except httplib.IncompleteRead:
-            raise ProxyError(ERR_CONN_DROPPED)
+        except httplib.IncompleteRead, e:
+            raise ProxyError(ERR_CONN_DROPPED, e)
         except httplib.HTTPException:
             raise ProxyError(ERR_CONN_MISC, e)
         except socket.error, e:
-            raise ProxyError(ERR_READ_TIMEOUT, str(e), data={"read_timeout": config.get_read_timeout()})
+            raise ProxyError(ERR_READ_TIMEOUT, e, data={"read_timeout": config.get_read_timeout()})
         
     def cleanup(self):
         self.buf.close()
