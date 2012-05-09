@@ -47,19 +47,7 @@ class application:
         # This is a work-around for that issue.
         if self.url.startswith("/"):
             self.url = "http://" + self.environ['HTTP_HOST'] + self.url
-            
-    def _get(self, url):
-        response = proxy.get(url)
-        response = arc_writer(response)
-        return response
         
-    def get(self, url):
-        response = self.cache.get(url)
-        if not response:
-            response = self._get(url)
-            self.cache.set(url, response)
-        return response
-    
     def __iter__(self):
         response = None
         try:
@@ -70,14 +58,8 @@ class application:
                 return self.proxy_response(record)
             else:
                 return self.success(record.content_length, record.content_iter)
-        except errors.BadURL:
-            logging.error("bad url %r", self.url)
-            return self.error("400 Bad Request")
-        except errors.ConnectionFailure:
-            logging.error("Connection failure", exc_info=True)
-            return self.error("502 Bad Gateway")
         except:
-            logging.error("Internal Error", exc_info=True)
+            logging.error("Internal Error - %s", self.url, exc_info=True)
             return self.error("500 Internal Server Error")
         finally:
             if response:
@@ -89,12 +71,12 @@ class application:
                 response.cleanup()
 
     def get_record(self):
-        """Fecthes the Record object from cache or constructs from web.
+        """Fetches the Record object from cache or constructs from web.
         """
         record = _cache.get(self.url)
         if record is None:
-            response = proxy.urlopen(self.url)
-            record = response.write_arc(pool)
+            http_response = proxy.urlopen(self.url)
+            record = http_response.write_arc(pool)
             _cache.set(self.url, record)
         return record
 
