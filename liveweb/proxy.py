@@ -53,7 +53,7 @@ class ProxyError(Exception):
         msg = "E%02d: %s" % (self.errcode, self.errmsg)
 
         if cause_msg:
-            msg += " " + cause_msg
+            msg += " (" + cause_msg + ")"
 
         if data:
             msg += " %s" % data
