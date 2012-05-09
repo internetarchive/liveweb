@@ -132,10 +132,9 @@ def _urlopen(url):
     
     Called by urlopen and test cases.
     """
-    headers = {
-        "User-Agent": config.user_agent,
-        "Connection": "close"
-    }
+    headers = config.get("extra_headers",{})
+    headers['User-Agent'] = config.user_agent
+
     type, host, selector = split_type_host(url)
 
     conn = ProxyHTTPConnection(host, url=url)

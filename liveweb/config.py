@@ -7,6 +7,7 @@ import os
 import logging
 
 user_agent = "ia_archiver(OS-Wayback)"
+extra_headers = {}
 
 M = 1024 * 1024
 
@@ -14,7 +15,7 @@ M = 1024 * 1024
 max_cacheable_size = 10 * M
 
 # timeout in seconds
-timeout = 60
+timeout = 600
 
 dns_timeout = None
 connect_timeout = None
@@ -68,9 +69,12 @@ def load(filename):
         return
         
     d = yaml.safe_load(open(filename))
-    
+
+    print 'Here', d
     if "max_cacheable_size" in d:
         d['max_cacheable_size'] = _parse_size(d['max_cacheable_size'])
+    
+
 
     # update config
     globals().update(d)
