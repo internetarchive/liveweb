@@ -7,6 +7,7 @@ import os
 import Queue
 import random
 import threading
+import socket
 
 import logging
 logging.basicConfig(level = logging.DEBUG)
@@ -35,7 +36,7 @@ class FilePool(object):
     Implements a pool of files from which a file can be requested.
 
     """
-    def __init__(self, directory, pattern="liveweb-%(timestamp)s-%(seq)s.arc.gz", max_files=1, max_file_size=100*1024*1024):
+    def __init__(self, directory, pattern="liveweb-%(timestamp)s-%(serial)05d.arc.gz", max_files=1, max_file_size=100*1024*1024):
         """
         Creates a pool of files in the given directory with the
         specified pattern.
@@ -54,14 +55,25 @@ class FilePool(object):
         self.queue = Queue.Queue(self.max_files)
 
         self.seq = 0
+
+        # vars required to substitue filename pattern.
+        self._port = os.getenv("LIVEWEB_PORT", "0")
+        self._host = socket.gethostname()
+        self._pid = os.getpid()
         
         for i in range(self.max_files):
             self._add_file_to_pool()
 
     def _add_file_to_pool(self):
         "Creates a new file and puts it in the pool"
-        pattern_dict = dict(timestamp = datetime.datetime.utcnow().strftime("%Y%m%d%H%M%s%f"),
-                            seq = "%05d"%self.seq)
+        pattern_dict = dict(
+            timestamp=datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S"),
+            serial=self.seq,
+            port=self._port,
+            host=self._host,
+            fqdn=self._host,
+            pid=self._pid)
+
         fname = self.pattern%pattern_dict
         absolute_name = os.path.join(self.directory, fname)
         logging.debug("Adding %s to pool",absolute_name)
