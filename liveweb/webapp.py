@@ -20,8 +20,11 @@ def setup():
     """This is called from main to initialize the requires globals.
     """
     global pool, _cache
-    pool = file_pool.FilePool(**config.storage)
-    _cache = cache.create(**config.cache)
+    pool = file_pool.FilePool(config.output_directory,
+                              pattern=config.filename_pattern,
+                              max_files=config.num_writers,
+                              max_file_size=config.filesize_limit)
+    _cache = cache.create(type=config.cache, config=config)
 
 class application:
     """WSGI application for liveweb proxy.

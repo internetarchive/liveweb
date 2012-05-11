@@ -22,7 +22,7 @@ class RedisCache:
         :param db: db number, defaults to 0
         :param expire_time: amount of time in seconds after which the entry in the cache should expire, defaults to one hour.
         """
-        self.expire_time = params.pop('expire_time', 3600) # default timeout
+        self.expire_time = int(params.pop('expire_time', 3600)) # default timeout
 
         # max size of record that can be cached. Defaults to 100K.
         self.max_record_size = params.pop('max_record_size', 100*1024)
@@ -108,13 +108,18 @@ class NoCache:
     def set(self, url, record):
         pass
 
-cache_types = {
-    "redis": RedisCache,
-    "sqlite": SqliteCache,
-    None: NoCache
-}
+def create(type, config):
+    logging.info("creating cache %s", type)
 
-def create(type, **params):
-    logging.info("creating cache %s %s", type, params)
-    klass = cache_types[type]
-    return klass(**params)
+    if type == 'redis':
+        return RedisCache(host=config.redis_host, 
+                          port=config.redis_port, 
+                          db=config.redis_db, 
+                          expire_time=config.redis_expire_time, 
+                          max_record_size=config.redis_max_record_size)
+    elif type == 'sqlite':
+        return SqliteCache(config.sqlite_db)
+    elif type == 'none' or type == None:
+        return NoCache()
+    else:
+        raise ValueError("Unknown cache type %r" % type)

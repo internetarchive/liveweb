@@ -16,7 +16,7 @@ VENV=$(VIRTUAL_ENV)
 LIVEWEB_ADDRESS=localhost:7070
 WAYBACK_ADDRESS=:8080
 
-CONFIG=config.yml
+CONFIG=config.ini
 
 UWSGI=$(VENV)/bin/uwsgi -H$(VENV)
 

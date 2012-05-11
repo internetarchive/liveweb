@@ -9,12 +9,13 @@ logging.basicConfig(level=logging.INFO,
 from . import config 
 
 # load config
+config.load_from_env()
 if len(sys.argv) > 1:
-    config.load(sys.argv[1])
+    config.load_from_ini(sys.argv[1])
     
 # Make sure the storage directory exists
-if not os.path.exists(config.storage['directory']):
-    os.makedirs(config.storage['directory'])
+if not os.path.exists(config.output_directory):
+    os.makedirs(config.output_directory)
 
 from . import webapp
 
