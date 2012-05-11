@@ -11,7 +11,7 @@ def test_creation(pooldir):
     from ..file_pool import FilePool
     
     # Create the pool
-    pool = FilePool(pooldir, pattern = "test-%(seq)s", max_files = 10, max_file_size = 10)
+    pool = FilePool(pooldir, pattern = "test-%(serial)05d", max_files = 10, max_file_size = 10)
     
     # Get files in pool directory. 
     pool_files = set(glob.glob(pooldir + "/*"))
@@ -32,7 +32,7 @@ def test_get_return(pooldir):
     from ..file_pool import FilePool
     
     # Create the pool
-    pool = FilePool(pooldir, pattern = "test-%(seq)s", max_files = 10, max_file_size = 10)
+    pool = FilePool(pooldir, pattern = "test-%(serial)05d", max_files = 10, max_file_size = 10)
 
     fps = []
 
@@ -58,7 +58,7 @@ def test_max_file_size(pooldir):
     from ..file_pool import FilePool
     
     # Create the pool
-    pool = FilePool(pooldir, pattern = "test-%(seq)s", max_files = 10, max_file_size = 10)
+    pool = FilePool(pooldir, pattern = "test-%(serial)05d", max_files = 10, max_file_size = 10)
     
     fp = pool.get_file()
     fp.write("test" * 100) # Max size has been exceeded. File should
@@ -78,7 +78,7 @@ def test_close_pool(pooldir):
     from ..file_pool import FilePool
     
     # Create the pool
-    pool = FilePool(pooldir, pattern = "test-%(seq)s", max_files = 10, max_file_size = 10)
+    pool = FilePool(pooldir, pattern = "test-%(serial)05d", max_files = 10, max_file_size = 10)
     
     pool.close()
     
@@ -93,7 +93,7 @@ def test_member_file_context(pooldir):
     from ..file_pool import FilePool
     
     # Create the pool
-    pool = FilePool(pooldir, pattern = "test-%(seq)s", max_files = 10, max_file_size = 10)
+    pool = FilePool(pooldir, pattern = "test-%(serial)05d", max_files = 10, max_file_size = 10)
     
     assert len(pool.queue.queue) == 10
 

@@ -178,7 +178,6 @@ class TestErrors:
         self.verify(proxy.ERR_CONN_REFUSED, "http://localhost:1234/")
 
     def test_conn_timeout(self, monkeypatch):
-        monkeypatch.setattr(config, "timeout", 0.5)
         monkeypatch.setattr(config, "connect_timeout", 0.5)
         # www.google.com drops the TCP packets on unsed ports, resulting in timeout
         self.verify(proxy.ERR_CONN_TIMEOUT, "http://www.google.com:1234/")
