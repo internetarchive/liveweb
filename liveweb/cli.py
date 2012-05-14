@@ -22,6 +22,10 @@ def make_config():
                  default="false",
                  help="enables the http-passthrough mode")
 
+    c.add_option("--user-agent", 
+                 default="ia_archiver(OS-Wayback)",
+                 help="the user-agent string used by liveweb-proxy")
+
     # server options
     c.add_option("-l", "--listen", 
                  metavar="IP_ADDRESS", 

@@ -14,7 +14,7 @@ from .cli import make_config
 def init_defaults():
     global _config
     _config = make_config()
-    gloabsl().update(_config.dict())
+    globals().update(_config.dict())
 
 def load():
     """Loads the configuration from environment, config file and command-line arguments.
@@ -34,6 +34,9 @@ def get_initial_data_timeout():
 
 def get_read_timeout():
     return read_timeout or default_timeout
+
+# initialize the default configuration
+init_defaults()
 
 # handy function to check for existance of a config parameter
 get = globals().get
