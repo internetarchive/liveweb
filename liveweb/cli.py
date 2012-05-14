@@ -154,7 +154,9 @@ def run_uwsgi(config):
     os.putenv("UWSGI_HTTP", bind)
     os.putenv("UWSGI_LISTEN", "1024") # socket listen backlog. TODO support customizing this
 
-    os.execvp("uwsgi", [str(a) for a in args])
+    args = ["liveweb-proxy"]
+
+    os.execvp("uwsgi", args)
 
 def main():
     c = make_config()
