@@ -137,17 +137,18 @@ def run_uwsgi(config):
     python_home = os.getenv("VIRTUAL_ENV") or find_python_home()
     bind = "%s:%s" % (config['listen'], config['port'])
 
-    args = ['uwsgi',
-            '--master',
-            '--single-interpreter',
-            '--http', bind,
-            '--home', python_home,
-            '--procname-prefix', 'liveweb-proxy',
-            '--wsgi', 'liveweb.main',
-            '--processes', config['workers'],
-            '--threads', config['threads'],
-            '--listen', 1024, # socket listen backlog. TODO support customizing this
-            ]
+    # Set the UWSGI parameters in the env so that these details are
+    # not shown in ps and top commands.
+    os.putenv("UWSGI_MASTER", "1")
+    os.putenv("UWSGI_SINGLE_INTERPRETER", "1")
+    os.putenv("UWSGI_WSGI", "liveweb.main")
+    os.putenv("UWSGI_PROCNAME_PREFIX", " liveweb-proxy ")
+    os.putenv("UWSGI_HOME", python_home)
+
+    os.putenv("UWSGI_PROCESSES", str(config['workers']))
+    os.putenv("UWSGI_THREADS", str(config['threads']))
+    os.putenv("UWSGI_HTTP", bind)
+    os.putenv("UWSGI_LISTEN", "1024") # socket listen backlog. TODO support customizing this
 
     os.execvp("uwsgi", [str(a) for a in args])
 
@@ -156,9 +157,10 @@ def main():
 
     # load configuration from env, config file and command line arguments.
     c.load()
-    print c.dict(dirty=True)
 
+    # update current env with new values so that the exec'ed process can take these settings
     c.putenv()
+
     run_uwsgi(c.dict())
     
 if __name__ == "__main__":
