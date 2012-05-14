@@ -56,6 +56,10 @@ class FilePool(object):
 
         self.seq = 0
 
+        # seq is updated by multiple threads. Incrementing it should
+        # be protected by a lock.
+        self._lock = threading.Lock()
+
         # vars required to substitue filename pattern.
         self._port = os.getenv("LIVEWEB_PORT", "0")
         self._host = socket.gethostname()
@@ -79,7 +83,11 @@ class FilePool(object):
         logging.debug("Adding %s to pool",absolute_name)
         fp = MemberFile(absolute_name, self, mode = "ab")
         self.queue.put_nowait(fp)
-        self.seq += 1
+        self._incr_seq()
+
+    def _incr_seq(self):
+        with self._lock:
+            self.seq += 1
     
     def return_file(self, f):
         """Returns a file to the pool. Will discard the file and
