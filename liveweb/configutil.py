@@ -93,8 +93,10 @@ class Config:
         p.read(filename)
 
         for c in self.config_options:
-            if p.has_option(self.name, c.name):
-                c.set(p.get(self.name, c.name, raw=True))
+            # using name as used in command line options in the config file
+            name = c.name.replace("_", "-")
+            if p.has_option(self.name, name):
+                c.set(p.get(self.name, name, raw=True))
 
     def create_optparse_parser(self):
         p = optparse.OptionParser(self.name)
