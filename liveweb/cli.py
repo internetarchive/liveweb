@@ -75,6 +75,10 @@ def make_config():
                  default="10s",
                  help="the default timeout value to use if a timeout option is not specified."),
 
+    c.add_option("--dns-timeout", 
+                 type="time",
+                 help="maximum allowed time for domain name resolution")
+
     c.add_option("--connect-timeout", 
                  type="time",
                  help="maximum allowed time for establishing connection")
