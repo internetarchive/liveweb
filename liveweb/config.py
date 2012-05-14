@@ -35,6 +35,9 @@ def get_initial_data_timeout():
 def get_read_timeout():
     return read_timeout or default_timeout
 
+def get_dns_timeout():
+    return dns_timeout or default_timeout
+
 # initialize the default configuration
 init_defaults()
 

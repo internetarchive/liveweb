@@ -390,7 +390,7 @@ class ProxyHTTPConnection(httplib.HTTPConnection):
             # -3: Temporary failure in name resolution
             # Happens when DNS request is timeout
             if e.errno == -3:
-                raise ProxyError(ERR_DNS_TIMEOUT, e, data={"dns_timeout": config.dns_timeout})
+                raise ProxyError(ERR_DNS_TIMEOUT, e, data={"dns_timeout": config.get_dns_timeout()})
             else:
                 raise ProxyError(ERR_INVALID_DOMAIN, e)
         except socket.timeout, e:
