@@ -162,6 +162,9 @@ def run_uwsgi(config):
 
     os.execvp("uwsgi", args)
 
+def set_dns_timeout(timeout):
+    os.putenv("RES_OPTIONS", "timeout:%d attempts:1" % timeout)
+
 def main():
     c = make_config()
 
@@ -170,6 +173,8 @@ def main():
 
     # update current env with new values so that the exec'ed process can take these settings
     c.putenv()
+
+    set_dns_timeout(c.get('dns_timeout') or c.get('default_timeout'))
 
     run_uwsgi(c.dict())
     

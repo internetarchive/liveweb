@@ -46,6 +46,9 @@ class Config:
         option = ConfigOption(*args, **kwargs)
         self.config_options.append(option)
 
+    def get(self, name):
+        return self.dict().get(name)
+
     def dict(self, dirty=None):
         """Returns values of all the config options as a dict.
 
