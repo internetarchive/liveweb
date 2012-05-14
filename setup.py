@@ -11,5 +11,10 @@ setup(
     url="http://github.com/internetarchive/liveweb",
     packages=["liveweb"],
     platforms=["any"],
+    entry_points={
+        "console_scripts": [
+            "liveweb-proxy=liveweb.cli:main"
+        ]
+    }
 )
 
