@@ -176,6 +176,9 @@ def main():
 
     set_dns_timeout(c.get('dns_timeout') or c.get('default_timeout'))
 
+    # required for generating filenames
+    os.putenv("LIVEWEB_PORT", str(c.get("port")))
+
     run_uwsgi(c.dict())
     
 if __name__ == "__main__":
