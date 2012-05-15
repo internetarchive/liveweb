@@ -148,6 +148,7 @@ def run_uwsgi(config):
     # Set the UWSGI parameters in the env so that these details are
     # not shown in ps and top commands.
     os.putenv("UWSGI_MASTER", "1")
+    os.putenv("UWSGI_LAZY", "1") # load the app in worker process instead of master
     os.putenv("UWSGI_SINGLE_INTERPRETER", "1")
     os.putenv("UWSGI_WSGI", "liveweb.main")
     os.putenv("UWSGI_PROCNAME_PREFIX", " liveweb-proxy ")
