@@ -36,7 +36,7 @@ class FilePool(object):
     Implements a pool of files from which a file can be requested.
 
     """
-    def __init__(self, directory, pattern="liveweb-%(timestamp)s-%(serial)05d.arc.gz", max_files=1, max_file_size=100*1024*1024):
+    def __init__(self, directory, pattern="liveweb-%(timestamp)s-%(serial)05d.arc.gz", max_files=1, max_file_size=100*1024*1024, init_file_func=None):
         """
         Creates a pool of files in the given directory with the
         specified pattern.
@@ -51,6 +51,7 @@ class FilePool(object):
         self.pattern = pattern
         self.max_files = max_files
         self.max_file_size = max_file_size
+        self.init_file_func = init_file_func
 
         self.queue = Queue.Queue(self.max_files)
 
@@ -83,6 +84,12 @@ class FilePool(object):
         absolute_name = os.path.join(partial_dir, fname)
         logging.debug("Adding %s to pool",absolute_name)
         fp = MemberFile(absolute_name, self, mode = "ab")
+
+        # Initialize the file object like writing file headers etc.
+        if self.init_file_func:
+            logging.info("calling init_file_func")
+            self.init_file_func(fp)
+
         self.queue.put_nowait(fp)
         self._incr_seq()
 

@@ -4,8 +4,9 @@
 from cStringIO import StringIO
 import gzip
 import logging
+import socket
 
-from warc.arc import ARCRecord
+from warc.arc import ARCRecord, ARCFile
 
 from . import proxy
 from . import errors
@@ -16,14 +17,36 @@ from . import cache
 pool = None
 _cache = None
 
+def init_arc_file(fileobj):
+    """Writes the ARC file headers when a new file is created.
+    """
+    zfileobj = gzip.GzipFile(fileobj=fileobj, filename=None, mode="w")
+
+    headers = {}
+    headers['ip_address'] = socket.gethostbyname(socket.gethostname())
+    headers['org'] = "InternetArchive"
+
+    afile = ARCFile(fileobj=zfileobj, filename=fileobj.name, mode='wb', version=1, file_headers=headers)
+    afile._write_header()
+    afile.close()
+    fileobj.flush()
+
 def setup():
     """This is called from main to initialize the requires globals.
     """
     global pool, _cache
+
+    # Write ARC file header if the archive format is "arc"
+    if config.archive_format == "arc":
+        init_file = init_arc_file
+    else:
+        init_file = None
+
     pool = file_pool.FilePool(config.output_directory,
                               pattern=config.filename_pattern,
                               max_files=config.num_writers,
-                              max_file_size=config.filesize_limit)
+                              max_file_size=config.filesize_limit,
+                              init_file_func=init_file)
     _cache = cache.create(type=config.cache, config=config)
 
 class application:
