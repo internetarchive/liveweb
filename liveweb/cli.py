@@ -173,7 +173,10 @@ def run_uwsgi(config):
 
     args = ["liveweb-proxy"]
 
-    os.execvp("uwsgi", args)
+    dirname = os.path.dirname(sys.argv[0])
+    uwsgi_path = os.path.join(dirname, "uwsgi")
+
+    os.execvp(uwsgi_path, args)
 
 def set_dns_timeout(timeout):
     os.putenv("RES_OPTIONS", "timeout:%d attempts:1" % timeout)
