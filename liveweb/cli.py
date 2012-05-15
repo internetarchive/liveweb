@@ -173,7 +173,7 @@ def run_uwsgi(config):
 
     args = ["liveweb-proxy"]
 
-    dirname = os.path.absname(os.path.dirname(sys.argv[0]))
+    dirname = os.path.abspath(os.path.dirname(sys.argv[0]))
     uwsgi_path = os.path.join(dirname, "uwsgi")
 
     os.execvp(uwsgi_path, args)
