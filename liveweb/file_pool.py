@@ -18,18 +18,18 @@ class MemberFile(object):
     def __init__(self, name, pool, *largs, **kargs):
         self.fp = open(name, *largs, **kargs)
         self.pool = pool
-    
+
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.pool.return_file(self)
-    
+
 
     def __getattr__(self, attr):
         return getattr(self.fp, attr)
-        
-    
+
+
 
 class FilePool(object):
     """
@@ -64,7 +64,7 @@ class FilePool(object):
         self._port = os.getenv("LIVEWEB_PORT", "0")
         self._host = socket.gethostname()
         self._pid = os.getpid()
-        
+
         for i in range(self.max_files):
             self._add_file_to_pool()
 
@@ -79,7 +79,8 @@ class FilePool(object):
             pid=self._pid)
 
         fname = self.pattern%pattern_dict
-        absolute_name = os.path.join(self.directory, fname)
+        partial_dir = os.path.join(self.directory, 'partial')
+        absolute_name = os.path.join(partial_dir, fname)
         logging.debug("Adding %s to pool",absolute_name)
         fp = MemberFile(absolute_name, self, mode = "ab")
         self.queue.put_nowait(fp)
@@ -88,7 +89,7 @@ class FilePool(object):
     def _incr_seq(self):
         with self._lock:
             self.seq += 1
-    
+
     def return_file(self, f):
         """Returns a file to the pool. Will discard the file and
         insert a new one if the file is above max_file_size."""
@@ -100,8 +101,12 @@ class FilePool(object):
         else:
             logging.debug(" Closing and creating a new file")
             f.close()
+            complete_dir = os.path.join(self.directory, 'complete')
+            basename = os.path.basename(f.name)
+            complete_name = os.path.join(complete_dir, basename)
+            os.rename(f.name, complete_name)
             self._add_file_to_pool()
-        
+
     def get_file(self):
         f = self.queue.get()
         logging.debug("Getting %s",f)
@@ -112,17 +117,3 @@ class FilePool(object):
         while not self.queue.empty():
             fp = self.queue.get_nowait()
             fp.close()
-            
-        
-        
-        
-        
-        
-
-
-        
-        
-        
-
-            
-        
