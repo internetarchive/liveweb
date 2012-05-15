@@ -87,7 +87,6 @@ class FilePool(object):
 
         # Initialize the file object like writing file headers etc.
         if self.init_file_func:
-            logging.info("calling init_file_func")
             self.init_file_func(fp)
 
         self.queue.put_nowait(fp)
