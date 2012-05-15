@@ -74,9 +74,11 @@ class Config:
         p = self.create_optparse_parser()
         options, args2 = p.parse_args(args)
 
-        # TODO: support an option to provite an alternative name for "config"
-        if hasattr(options, "config") and options.config is not None:
-            self.load_from_ini(options.config)
+        # take config file from command-line or env
+        # TODO: support an option to provide an alternative name for "config"
+        config_file = getattr(options, "config", None) or self.get("config")
+        if config_file:
+            self.load_from_ini(config_file)
 
         self.load_from_optparse_options(options)
 
