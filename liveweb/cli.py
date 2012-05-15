@@ -26,6 +26,12 @@ def make_config():
                  default="ia_archiver(OS-Wayback)",
                  help="the user-agent string used by liveweb-proxy")
 
+    c.add_option("--uid",
+                 help="setuid to the specified user/uid")
+
+    c.add_option("--gid",
+                 help="setgid to the specified group/gid")
+
     # server options
     c.add_option("-l", "--listen", 
                  metavar="IP_ADDRESS", 
@@ -158,6 +164,12 @@ def run_uwsgi(config):
     os.putenv("UWSGI_THREADS", str(config['threads']))
     os.putenv("UWSGI_HTTP", bind)
     os.putenv("UWSGI_LISTEN", "1024") # socket listen backlog. TODO support customizing this
+
+    if config['uid']:
+        os.putenv("UWSGI_UID", config['uid'])
+
+    if config['gid']:
+        os.putenv("UWSGI_GID", config['gid'])
 
     args = ["liveweb-proxy"]
 
