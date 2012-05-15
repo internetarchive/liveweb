@@ -72,7 +72,7 @@ class FilePool(object):
     def _add_file_to_pool(self):
         "Creates a new file and puts it in the pool"
         pattern_dict = dict(
-            timestamp=datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S"),
+            timestamp=datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S%f"),
             serial=self.seq,
             port=self._port,
             host=self._host,
