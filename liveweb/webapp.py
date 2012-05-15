@@ -5,6 +5,7 @@ from cStringIO import StringIO
 import gzip
 import logging
 import socket
+import datetime
 
 from warc.arc import ARCRecord, ARCFile
 
@@ -23,6 +24,7 @@ def init_arc_file(fileobj):
     zfileobj = gzip.GzipFile(fileobj=fileobj, filename=None, mode="w")
 
     headers = {}
+    headers['date'] = datetime.datetime.utcnow()
     headers['ip_address'] = socket.gethostbyname(socket.gethostname())
     headers['org'] = "InternetArchive"
 
