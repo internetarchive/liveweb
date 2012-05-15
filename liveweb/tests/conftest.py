@@ -11,10 +11,11 @@ def pytest_funcarg__pooldir(request):
     if os.path.exists(dirname):
         shutil.rmtree(dirname)
 
-    os.mkdir(dirname)
+    os.makedirs(os.path.join(dirname, 'partial'))
+    os.makedirs(os.path.join(dirname, 'complete'))
 
     request.addfinalizer(lambda : shutil.rmtree(dirname))
-    
+
     return dirname
 
 
