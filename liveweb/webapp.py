@@ -81,7 +81,6 @@ class application:
             self.url = "http://" + self.environ['HTTP_HOST'] + self.url
         
     def __iter__(self):
-        response = None
         try:
             self.parse_request()
 
@@ -93,14 +92,6 @@ class application:
         except:
             logging.error("Internal Error - %s", self.url, exc_info=True)
             return self.error("500 Internal Server Error")
-        finally:
-            if response:
-                # XXX-Anand: response.cleanup will unlink the temp file, # 
-                # which'll will be in use when we are in http_passthrough mode. 
-                # The file will be removed when the reference to the file object 
-                # is gone. 
-                # This may create trouble on windoz.
-                response.cleanup()
 
     def get_record(self):
         """Fetches the Record object from cache or constructs from web.

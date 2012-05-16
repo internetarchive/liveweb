@@ -100,7 +100,6 @@ class Record:
     def __iter__(self):
         return iter(self.content_iter)
 
-
 def split_type_host(url):
     """Returns (type, host, selector) from the url.
     """
@@ -241,9 +240,6 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
             raise ProxyError(ERR_CONN_MISC, e)
         except socket.error, e:
             raise ProxyError(ERR_READ_TIMEOUT, e, data={"read_timeout": config.get_read_timeout()})
-        
-    def cleanup(self):
-        self.buf.close()
         
     def error_bad_gateway(self):
         """Resets the status code to "502 Bad Gateway" indicating that there was 

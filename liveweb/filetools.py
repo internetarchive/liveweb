@@ -109,10 +109,8 @@ class MemFile:
         return getattr(self._fileobj, name)
         
     def _open_tmpfile(self):
-        filename = tempfile.mktemp(dir=self.tmpdir, prefix=self.prefix, suffix=self.suffix)
-        logging.info("creating temp file %s", filename)
-        # w+ mode open file for both reading and writing
-        return open(filename, "w+")
+        # The TemporaryFile gets deleted automatically when it is closed or when it is garbage collected.
+        return tempfile.TemporaryFile(dir=self.tmpdir, prefix=self.prefix, suffix=self.suffix)
         
     def _switch_to_disk(self):
         content = self._fileobj.getvalue()
