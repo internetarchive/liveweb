@@ -51,6 +51,10 @@ def setup():
                               init_file_func=init_file)
     _cache = cache.create(type=config.cache, config=config)
 
+    # For redis cache, use redis for keeping track of file number sequence
+    if config.cache == 'redis':
+        pool.set_sequence(_cache)
+
 class application:
     """WSGI application for liveweb proxy.
     """

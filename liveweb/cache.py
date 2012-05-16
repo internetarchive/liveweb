@@ -48,6 +48,12 @@ class RedisCache:
             data = record.read_all()
             self.redis_client.setex(url, self.expire_time, data)
 
+    def next(self):
+        """Returns the next-value of the counter.
+        Used by file_pool to get next sequence.
+        """
+        return self.redis_client.incr("filename-sequence")
+
 class SqliteCache:
     """Cache implementation based on sqlite.
 

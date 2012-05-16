@@ -8,6 +8,7 @@ import Queue
 import random
 import threading
 import socket
+import itertools
 
 import logging
 logging.basicConfig(level = logging.DEBUG)
@@ -28,7 +29,6 @@ class MemberFile(object):
 
     def __getattr__(self, attr):
         return getattr(self.fp, attr)
-
 
 
 class FilePool(object):
@@ -55,25 +55,30 @@ class FilePool(object):
 
         self.queue = Queue.Queue(self.max_files)
 
-        self.seq = 0
-
-        # seq is updated by multiple threads. Incrementing it should
-        # be protected by a lock.
-        self._lock = threading.Lock()
+        self.seq_counter = itertools.count()
 
         # vars required to substitue filename pattern.
         self._port = os.getenv("LIVEWEB_PORT", "0")
         self._host = socket.gethostname()
         self._pid = os.getpid()
 
+        # Adding None to queue indicating that new file needs to be created
         for i in range(self.max_files):
-            self._add_file_to_pool()
+            self.queue.put(None)
 
-    def _add_file_to_pool(self):
-        "Creates a new file and puts it in the pool"
+    def set_sequence(self, counter):
+        """Sets the sequence counter used to generate filename.
+
+        Used to set a distrbuted persistent counter using redis/database.
+
+        :param counter: An iterable counter
+        """
+        self.seq_counter = counter
+
+    def _new_file(self):
         pattern_dict = dict(
             timestamp=datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S%f"),
-            serial=self.seq,
+            serial=self.seq_counter.next(),
             port=self._port,
             host=self._host,
             fqdn=self._host,
@@ -82,19 +87,14 @@ class FilePool(object):
         fname = self.pattern%pattern_dict
         partial_dir = os.path.join(self.directory, 'partial')
         absolute_name = os.path.join(partial_dir, fname)
-        logging.debug("Adding %s to pool",absolute_name)
-        fp = MemberFile(absolute_name, self, mode = "ab")
 
+        logging.info("Creating new file %s", absolute_name)
+
+        fp = MemberFile(absolute_name, self, mode = "ab")
         # Initialize the file object like writing file headers etc.
         if self.init_file_func:
             self.init_file_func(fp)
-
-        self.queue.put_nowait(fp)
-        self._incr_seq()
-
-    def _incr_seq(self):
-        with self._lock:
-            self.seq += 1
+        return fp
 
     def return_file(self, f):
         """Returns a file to the pool. Will discard the file and
@@ -111,10 +111,13 @@ class FilePool(object):
             basename = os.path.basename(f.name)
             complete_name = os.path.join(complete_dir, basename)
             os.rename(f.name, complete_name)
-            self._add_file_to_pool()
+            self.queue.put(None)
 
     def get_file(self):
         f = self.queue.get()
+        # f is None when new file needs to be created
+        if f is None:
+            f = self._new_file()
         logging.debug("Getting %s",f)
         return f
 
