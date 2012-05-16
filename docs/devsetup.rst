@@ -1,3 +1,5 @@
+.. _devsetup:
+
 Development Setup
 =================
 

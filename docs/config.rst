@@ -1,182 +1,185 @@
-
-Configuration
-=============
-
-.. _config_storage:
-
-storage
--------
-
-The ``storage`` paramater specifies where and how the records are
-stored on disk. ::
-
-    storage:
-        directory: "records"
-        pattern: "liveweb-%(timestamp)s-%(seq)s.arc.gz"
-        max_files: 1
-        max_file_size: 104857600 # 100 MB
-
-The description of the properties:
-
-**directory**
-
-    The directory to store the files.
-
-**pattern**
-
-    The pattern of the filename. Python string formatting is used to
-    substitute the ``timestamp`` and ``seq`` number.
-
-**max_files** 
-
-    Number of files to use. The application creates a file poll with
-    the specified number of files and threads start writing to the
-    first available file.
-
-**max_file_size**
-
-    Specifies the maximum size of the file. Once a file crosses this
-    size, it is closed and a new file is created with incremented
-    ``seq`` number.
-
-Except ``directory``, all the other paramaters are optional with above
-specified values as defaults.
-
-.. _config_cache:
-
-cache
------
-
-Liveweb proxy supports, caching the records on various backends.
+.. _config:
 
 
-Redis Backend
-^^^^^^^^^^^^^
+Liveweb Proxy Configuration
+===========================
 
-The redis cache backend stores the content of the records in redis. ::
+The ``liveweb-proxy`` can be configured using various command-line options and/or a config file.
 
-    cache:
-        type: redis
-        host: localhost
-        port: 6379
-        db: 0
-        expire_time: 3600
-        max_record_size: 102400
+Config file can be specified as::
 
-Except ``type`` all other paramerters are optional with the above
-specified values as defaults.
+    $ liveweb-proxy -c liveweb.ini
 
-The ``max_record_size`` parameter specified the maximum record size
-allowed to be cached. Records larger than this are not cached.
+or::
+ 
+    $ liveweb-proxy --config liveweb.ini
 
-SQLite Backend
-^^^^^^^^^^^^^^
+This section describes the available config settings. For each config setting, there is a command line option with the same name.
 
-The sqlite cache backend stores the filename, offset and length in
-the database. It reads the record from disk the same URL is accessed
-again. ::
+For example, config setting ``archive-format`` is available as command line argument `--archive-format`. 
 
-    cache:
-        type: sqlite
-        database: liveweb.db
+The config file is specified in INI format. Here is a sample config file. ::
 
-Memory Backend
-^^^^^^^^^^^^^^
+    [liveweb]
 
-There is no support for in-memory backend, but it can be achieved by
-using sqlite with in-memory database. ::
+    archive-format = arc
 
-    cache:
-        type: sqlite
-        database: ":memory:"
+    output-directory = /tmp/records
 
-No Cache
-^^^^^^^^
+    dns-timeout = 2s
+    
 
-This is the default behaviour. Can be specified in config as::
-
-    cache: null
-
-.. _config_user_agent:
-
-user_agent
-----------
-
-Specifies the value of the ``User-Agent`` request header. Default
-value is ``ia_archiver(OS-Wayback)``.
-
-.. _config_timeout:
-
-default_timeout
----------------
-
-Specifies the default value for :ref:`connect_timeout`, :ref:`initial_data_timeout` and :ref:`read_timeout`.
-
-.. _config_dns_timeout:
-
-dns_timeout
------------
-
-Specifies the max amount of time can a DNS resolution can take.
-
-Python doesn't support a way to specify DNS timeout. On Linux, the dns
-timeout can be specified via the `RES_OPTIONS` environment
-variable. This enviroment variable is set at the startup of the
-application based on this config setting.
-
-If unspecified, the DNS timeout is decided by the system default behavior.
-
-See `resolv.conf man page`_ for more details.
-
-.. _resolv.conf man page: http://manpages.ubuntu.com/manpages/lucid/en/man5/resolv.conf.5.html
-
-.. _config_connect_timeout:
-
-connect_timeout
----------------
-
-Specifies the connect timeout in seconds. Connections that take longer
-to establish will be aborted.
-
-.. _config_initial_data_timeout:
-
-initial_data_timeout
---------------------
-
-Specifies the maximum time allowed before receiving initial data (HTTP headers) from the remote server.
-
-.. _config_read_timeout:
-
-read_timeout
-------------
-
-Specifies the read timeout in seconds. This indicates the idle
-time. If no data is received for more than this time, the request will
-fail.
-
-If unspecified, this will default to the ``connect_timeout``.
-
-max_request_time
+Archive Settings
 ----------------
 
-Specifies the total amout of time a HTTP request can take. If it takes
-more than this, the current request will fail.
+**archive-format**
 
-max_response_size
------------------
+    Specifies the archive format. Should be one if ``arc`` or ``warc``.
 
-Specifies the maximum allowed size of response.
-
-archive_format
---------------
-
-Specified the archive format. Can be either ``arc`` or ``warc``.
+    The default value is ``arc``.
 
 .. warning::
 
    As of now only ``arc`` is supported.
 
-http_passthrough
-----------------
 
-This is a boolean parameter, setting it to ``true`` will make it work like a http proxy with archiving. Useful for testing and recording personal browsing.
+**output-directory**
+
+    Output directory to write ARC/WRC files. Default value is "records".
+
+
+**filename-pattern**
+
+    The pattern of the filename specified as Python string formatting
+    template. The default value is
+    ``live-%(timestamp)s-%(serial)05d-%(fqdn)s-%(port)s.arc.gz``.
+
+    Available substitutions are ``timestamp``, ``serial``, ``pid``,
+    ``fqdn`` (fully qualified domain name) and ``port``.
+
+**filesize-limit**
+
+    The limit on the size of file. If a file crosses this size, it
+    will be closed a new file will be created to write new records.
+
+**num-writers**
+
+    The number of concurrent writers. 
+
+    The default value is ``1``.
+
+
+Cache Settings
+--------------
+
+.. _config_cache:
+
+**cache**
+
+    Type of cache to use. Available options are ``redis``, ``sqlite`` and ``none``.
+
+    The default value is ``none``.
+
+**redis-host**
+
+**redis-port**
+
+**redis-db**
+
+    Redis host, port and db number. Used only when ``cache=redis``.
+
+**redis-expire-time**
+
+    Expire time to set in redis. Used only when ``cache=redis``.
+
+    The default value is ``1h`` (1 hour).
+
+**redis-max-record-size**
+
+    Maximum allowed size of a record that can be cached. Used only when ``cache=redis``.
+
+    The default value is ``100KB``.
+
+**sqlite-db**
+
+    Path to the sqlite database to use. This option is valid only when ``cache=sqlite``.
+
+    The default value is ``liveweb.db``.
+
+Timeouts and Resource Limits
+----------------------------
+
+**default-timeout**
+
+    This is the default timeout value for ``connect-timeout``, ``initial-data-timeout`` and ``read-timeout``. 
+
+    The default value is ``10s``.
+
+.. _config_dns_timeout:
+
+**dns-timeout**
+
+    Specifies the max amount of time can a DNS resolution can take.
+
+    Python doesn't support a way to specify DNS timeout. On Linux, the
+    dns timeout can be specified via the ``RES_OPTIONS`` environment
+    variable. This enviroment variable is set at the startup of the
+    application based on this config setting.
+
+    If unspecified, the DNS timeout is decided by the system default behavior.
+
+    See `resolv.conf man page`_ for more details.
+
+    .. _resolv.conf man page: http://manpages.ubuntu.com/manpages/lucid/en/man5/resolv.conf.5.html
+
+.. _config_connect_timeout:
+
+**connect-timeout**
+
+    Specifies the connect timeout in seconds. Connections that take
+    longer to establish will be aborted.
+
+.. _config_initial_data_timeout:
+
+**initial-data-timeout**
+
+    Specifies the maximum time allowed before receiving initial data
+    (HTTP headers) from the remote server.
+
+.. _config_read_timeout:
+
+**read-timeout**
+
+    Specifies the read timeout in seconds. This indicates the idle time. If no data is received for more than this time, the request will fail.
+
+
+**max-request-time**
+
+    Specifies the total amout of time a HTTP request can take. If it takes
+    more than this, the current request will fail.
+
+    The default value is ``2m``.
+
+**max-response-size**
+
+    Specifies the maximum allowed size of response.
+
+    The default value is ``100MB``.
+
+Other Settings
+--------------
+
+.. _config_user_agent:
+
+**user-agent**
+
+    Specifies the value of the ``User-Agent`` request header. 
+
+    The default value is ``ia_archiver(OS-Wayback)``.
+
+
+**http-passthrough**
+
+    This is a boolean parameter, setting it to ``true`` will make it
+    work like a http proxy with archiving. Useful for testing and
+    recording personal browsing.
