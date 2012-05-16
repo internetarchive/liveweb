@@ -51,8 +51,7 @@ Archive Settings
 **filename-pattern**
 
     The pattern of the filename specified as Python string formatting
-    template. The default value is
-    ``live-%(timestamp)s-%(serial)05d-%(fqdn)s-%(port)s.arc.gz``.
+    template. The default value is ``live-%(timestamp)s-%(serial)05d.arc.gz``.
 
     Available substitutions are ``timestamp``, ``serial``, ``pid``,
     ``fqdn`` (fully qualified domain name) and ``port``.
