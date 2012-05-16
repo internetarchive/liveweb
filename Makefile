@@ -20,13 +20,10 @@ CONFIG=config.ini
 
 UWSGI=$(VENV)/bin/uwsgi -H$(VENV)
 
-NPROCS=1
-NTHREADS=10
-
 .PHONY: docs
 
 run:
-	$(UWSGI) -M -i -l1024 -p $(NPROCS) --threads $(NTHREADS) --http ${LIVEWEB_ADDRESS} --wsgi liveweb.main --pyargv $(CONFIG)
+	$(VENV)/bin/liveweb-proxy -c $(CONFIG)
 
 venv:
 	virtualenv --no-site-packages $(VENV)
