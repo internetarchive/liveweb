@@ -49,6 +49,9 @@ class application(wsgiapp):
             return [""]
             
     def GET_web(self, url):
+        qs = self.environ.get("QUERY_STRING", "")
+        if qs:
+            url = url + "?" + qs
         record = self.fetch_arc_record(url)
         
         # fake socket to pass to httplib
