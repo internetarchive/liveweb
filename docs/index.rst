@@ -63,6 +63,8 @@ If you want to tweak uwsgi parameters, you can start liveweb as::
 
 The values of ``--processes``, ``--threads`` and ``--http`` options can be changed as needed and more options can be added too.
 
+You may have to specify `-H virtualenv_home` if you using a virtualenv.
+
 Documentation
 -------------
 
