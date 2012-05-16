@@ -13,6 +13,10 @@ def test_creation(pooldir):
     # Create the pool
     pool = FilePool(pooldir, pattern = "test-%(serial)05d", max_files = 10, max_file_size = 10)
 
+    # call pool.get_file() so that files are initialized
+    for i in range(pool.max_files):
+        pool.get_file()
+
     # Get files in pool directory.
     pool_files = set(glob.glob(pooldir + "/partial/*"))
 
@@ -64,14 +68,11 @@ def test_max_file_size(pooldir):
     fp.write("test" * 100) # Max size has been exceeded. File should
     pool.return_file(fp)   # get removed from pool when returned.
 
-    pool_files = set(x.fp.name for x in pool.queue.queue)
-    expected_files = set(["%s/partial/test-%05d"%(pooldir,x) for x in range(1,11)])
-
-    assert expected_files == pool_files
+    # queue should have all Nones now.
+    assert list(pool.queue.queue) == [None] * 10
 
     complete_files = set(glob.glob(pooldir + "/complete/*"))
     expected_complete_files = set(("%s/complete/test-%05d"%(pooldir,0),))
-
     assert expected_complete_files == complete_files
 
 

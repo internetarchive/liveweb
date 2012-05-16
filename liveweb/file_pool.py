@@ -125,4 +125,5 @@ class FilePool(object):
         logging.debug("Closing all descriptors. Emptying pool.")
         while not self.queue.empty():
             fp = self.queue.get_nowait()
-            fp.close()
+            if fp:
+                fp.close()
