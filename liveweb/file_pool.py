@@ -76,8 +76,12 @@ class FilePool(object):
         self.seq_counter = counter
 
     def _new_file(self):
+        timestamp = datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
         pattern_dict = dict(
-            timestamp=datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S%f"),
+            timestamp=timestamp,
+            timestamp20=timestamp,
+            timestamp17=timestamp[:17],
+            timestamp14=timestamp[:14],
             serial=self.seq_counter.next(),
             port=self._port,
             host=self._host,
