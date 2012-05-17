@@ -28,3 +28,7 @@ How to setup
 
 	Runs all the test cases.
 	
+Documentation
+=============
+
+Documentation is available at <http://liveweb.readthedocs.org/>.
