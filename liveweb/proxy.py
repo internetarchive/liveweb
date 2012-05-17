@@ -221,7 +221,9 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
         try:
             self.sock.settimeout(config.get_initial_data_timeout())
             httplib.HTTPResponse.begin(self)
-            self.content_type = self.getheader("content-type", self.DEFAULT_CONTENT_TYPE).split(';')[0]
+
+            ctype = self.getheader("content-type", self.DEFAULT_CONTENT_TYPE)
+            self.content_type = self.parse_content_type(ctype)
             self.header_offset = self.buf.tell()
         except socket.error, e:
             raise ProxyError(ERR_INITIAL_DATA_TIMEOUT, e, {"initial_data_timeout": config.get_initial_data_timeout()})
@@ -240,6 +242,22 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
             raise ProxyError(ERR_CONN_MISC, e)
         except socket.error, e:
             raise ProxyError(ERR_READ_TIMEOUT, e, data={"read_timeout": config.get_read_timeout()})
+
+    def parse_content_type(self, ctype):
+        # If there are multiple content-type headers, httplib joins them using ", "
+        # Take the last one in that case
+        ctype = ctype.split(",")[-1]
+
+        # content-type can have parameters separated by semicolon.
+        # For example: text/html; charset=UTF-8
+        ctype = ctype.split(";")[0]
+
+        # strip leading and trailing whitespace
+        ctype =  ctype.strip()
+
+        # remove any whitespace as it may interfere with arc header
+        ctype = ctype.replace(" ", "")
+        return ctype
         
     def error_bad_gateway(self):
         """Resets the status code to "502 Bad Gateway" indicating that there was 
