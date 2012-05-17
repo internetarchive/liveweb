@@ -151,32 +151,31 @@ def run_uwsgi(config):
     python_home = os.getenv("VIRTUAL_ENV") or find_python_home()
     bind = "%s:%s" % (config['listen'], config['port'])
 
-    # Set the UWSGI parameters in the env so that these details are
-    # not shown in ps and top commands.
-    os.putenv("UWSGI_MASTER", "1")
-    os.putenv("UWSGI_LAZY", "1") # load the app in worker process instead of master
-    os.putenv("UWSGI_SINGLE_INTERPRETER", "1")
-    os.putenv("UWSGI_WSGI", "liveweb.main")
-    os.putenv("UWSGI_PROCNAME_PREFIX", " liveweb-proxy ")
-    os.putenv("UWSGI_HOME", python_home)
+    args = ["uwsgi",
+            "--http", bind,
+            "-Mi",  # master, single-interpreter
+            "--lazy",
+            "--home", python_home,
+            "--wsgi", "liveweb.main",
+            "--processes", config['workers'],
+            "--threads", config['threads'], 
+            "--listen", 1024,
+            ]
 
-    os.putenv("UWSGI_PROCESSES", str(config['workers']))
-    os.putenv("UWSGI_THREADS", str(config['threads']))
-    os.putenv("UWSGI_HTTP", bind)
-    os.putenv("UWSGI_LISTEN", "1024") # socket listen backlog. TODO support customizing this
+    if config.get("config"):
+        args.append("--pyargv")
+        args.append("-c " + config['config'])
 
     if config['uid']:
-        os.putenv("UWSGI_UID", config['uid'])
+        args.append("--uid", config['uid'])
 
     if config['gid']:
-        os.putenv("UWSGI_GID", config['gid'])
-
-    args = ["liveweb-proxy"]
+        args.append("--gid", config['gid'])
 
     dirname = os.path.abspath(os.path.dirname(sys.argv[0]))
     uwsgi_path = os.path.join(dirname, "uwsgi")
 
-    os.execvp(uwsgi_path, args)
+    os.execvp(uwsgi_path, [str(a) for a in args])
 
 def set_dns_timeout(timeout):
     os.putenv("RES_OPTIONS", "timeout:%d attempts:1" % timeout)
