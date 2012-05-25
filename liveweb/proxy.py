@@ -296,10 +296,11 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
             # write the ARC record data in memory into file
             with pool.get_file() as f:
                 logging.info("writing arc record to file %s", f.name)
+                begin = f.tell()
                 f.write(buf.getvalue())
                 filename = f.name
                 
-            return Record(filename, offset=0, content_length=record_size, content_iter=iter([buf.getvalue()]))
+            return Record(filename, offset=begin, content_length=record_size, content_iter=iter([buf.getvalue()]))
         else:
             with pool.get_file() as f:
                 logging.info("writing arc record to file %s", f.name)
