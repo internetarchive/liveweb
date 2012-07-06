@@ -169,7 +169,7 @@ class ConfigOption:
             return self.option.convert_value("--" + self.optname, str(value))
 
     def parse_boolean(self, strvalue):
-        return strvalue.lower() in ["true", "1"]
+        return str(strvalue).lower() in ["true", "1"]
 
     def load_from_env(self, env=None):
         if env is None:
