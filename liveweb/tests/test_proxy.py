@@ -160,7 +160,10 @@ class TestSocketWrapper:
 class TestErrors:
     def assert_error_code(self, excinfo, error):
         e = excinfo.value
-        assert (e.errcode, e.errmsg) == error
+        if (e.errcode, e.errmsg) != error:
+            import traceback
+            traceback.print_exc(e)
+            assert (e.errcode, e.errmsg) == error
 
     def verify(self, err, url):
         with pytest.raises(proxy.ProxyError) as excinfo:
@@ -179,8 +182,8 @@ class TestErrors:
 
     def test_conn_timeout(self, monkeypatch):
         monkeypatch.setattr(config, "connect_timeout", 0.5)
-        # www.google.com drops the TCP packets on unsed ports, resulting in timeout
-        self.verify(proxy.ERR_CONN_TIMEOUT, "http://www.google.com:1234/")
+        # this random IP seems to be creating timeout
+        self.verify(proxy.ERR_CONN_TIMEOUT, "http://1.2.3.4/")
 
     def test_initial_data_timeout(self, monkeypatch, webtest):
         # This should not fail
