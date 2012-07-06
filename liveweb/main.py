@@ -6,6 +6,8 @@ logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(threadName)18s %(levelname)5s: %(message)s",
                     datefmt="%Y-%m-%d %H:%M:%S")
 
+logging.info("starting liveweb-proxy")
+
 from . import config
 
 # load config
@@ -25,4 +27,3 @@ from . import webapp
 webapp.setup()
 
 application = webapp.application
-
