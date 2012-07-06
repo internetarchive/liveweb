@@ -64,7 +64,7 @@ class SqliteCache:
     SCHEMA = ("" + 
               "CREATE TABLE cache (" +
               "    url text unique," + 
-              "    filename text unique," +
+              "    filename text," +
               "    offset int," + 
               "    clen int" +
               ")")
