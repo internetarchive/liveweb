@@ -5,7 +5,7 @@ requirements = [line.strip() for line in open("requirements.txt")]
 
 setup(
     name="liveweb",
-    version="2.0-dev",
+    version="2.0.dev",
     description="Liveweb proxy",
     license='GPL v2',
     author="Internet Archive",
