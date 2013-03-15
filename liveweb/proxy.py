@@ -387,7 +387,9 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
         self.buf.seek(self.header_offset)
         return filetools.fileiter(self.buf, size)
 
-class BaseProxyConnection:
+class ProxyConnectionMixin:
+    """Mixin to add extra functionality to HTTP/HTTPS connection to handle errors differently.
+    """    
     _base_connection_class = httplib.HTTPConnection
     _proxy_response_class = ProxyHTTPResponse
 
@@ -431,12 +433,12 @@ class BaseProxyConnection:
             raise ProxyError(ERR_CONN_MISC, e)
 
 
-class ProxyHTTPConnection(BaseProxyConnection, httplib.HTTPConnection):
+class ProxyHTTPConnection(ProxyConnectionMixin, httplib.HTTPConnection):
     """HTTPConnection wrapper to add extra hooks to handle errors.
     """
     _base_connection_class = httplib.HTTPConnection
 
-class ProxyHTTPSConnection(BaseProxyConnection, httplib.HTTPSConnection):
-    """HTTPConnection wrapper to add extra hooks to handle errors.
+class ProxyHTTPSConnection(ProxyConnectionMixin, httplib.HTTPSConnection):
+    """HTTPSConnection wrapper to add extra hooks to handle errors.
     """
     _base_connection_class = httplib.HTTPSConnection
