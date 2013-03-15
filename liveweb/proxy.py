@@ -136,7 +136,11 @@ def _urlopen(url):
 
     type, host, selector = split_type_host(url)
 
-    conn = ProxyHTTPConnection(host, url=url)
+    if type.lower() == "https":
+        conn = ProxyHTTPSConnection(host, url=url)
+    else:
+        conn = ProxyHTTPConnection(host, url=url)
+
     conn.request("GET", selector, headers=headers)
     return conn.getresponse()
 
@@ -383,24 +387,26 @@ class ProxyHTTPResponse(httplib.HTTPResponse):
         self.buf.seek(self.header_offset)
         return filetools.fileiter(self.buf, size)
 
-
-class ProxyHTTPConnection(httplib.HTTPConnection):
-    """HTTPConnection wrapper to add extra hooks to handle errors.
-    """
+class BaseProxyConnection:
+    _base_connection_class = httplib.HTTPConnection
+    _proxy_response_class = ProxyHTTPResponse
 
     def __init__(self, host, url):
         try:
-            httplib.HTTPConnection.__init__(self, host)
+            self._base_connection_class.__init__(self, host)
         except httplib.InvalidURL, e:
             raise ProxyError(ERR_INVALID_URL, e)
 
         self.url = url
-        self.response_class = lambda *a, **kw: ProxyHTTPResponse(self.url, *a, **kw)
+        self.response_class = lambda *a, **kw: self._proxy_response_class(self.url, *a, **kw)
+
+        # This is used when creating the socket connection
+        self.timeout = config.get_connect_timeout()
 
     def connect(self):
         try:
-            sock = socket.create_connection((self.host, self.port), config.get_connect_timeout())
-            self.sock = SocketWrapper(sock, config.max_request_time, config.max_response_size)
+            self._base_connection_class.connect(self)
+            self.sock = SocketWrapper(self.sock, config.max_request_time, config.max_response_size)
         except socket.gaierror, e:
             # -3: Temporary failure in name resolution
             # Happens when DNS request is timeout
@@ -416,9 +422,21 @@ class ProxyHTTPConnection(httplib.HTTPConnection):
                 raise ProxyError(ERR_CONN_REFUSED, e)
             else:
                 raise ProxyError(ERR_CONN_MISC, e)
+        return self.sock
 
     def request(self, method, url, body=None, headers={}):
         try:
-            httplib.HTTPConnection.request(self, method, url, body=body, headers=headers)
+            self._base_connection_class.request(self, method, url, body=body, headers=headers)
         except socket.error, e:
             raise ProxyError(ERR_CONN_MISC, e)
+
+
+class ProxyHTTPConnection(BaseProxyConnection, httplib.HTTPConnection):
+    """HTTPConnection wrapper to add extra hooks to handle errors.
+    """
+    _base_connection_class = httplib.HTTPConnection
+
+class ProxyHTTPSConnection(BaseProxyConnection, httplib.HTTPSConnection):
+    """HTTPConnection wrapper to add extra hooks to handle errors.
+    """
+    _base_connection_class = httplib.HTTPSConnection
