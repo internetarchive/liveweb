@@ -10,13 +10,18 @@ import urlparse
 import cgi
 from StringIO import StringIO
 
-from BeautifulSoup import BeautifulSoup, Tag, NavigableString
+from BeautifulSoup import BeautifulSoup
 
 import warc
 from .wsgiapp import wsgiapp
-
 # We expect that liveweb host:port is passed as argument to this script.
 liveweb = sys.argv[1]
+import re
+import logging
+
+logging.basicConfig(level=logging.DEBUG, )
+logger = logging.getLogger('[wayback]')
+
 
 class application(wsgiapp):
     """WSGI application for wayback machine prototype.
@@ -26,16 +31,16 @@ class application(wsgiapp):
         ("/get", "get"),
         ("/web/(.*)", "web")
     ]
-    
+
     @property
     def home(self):
         return "http://" + self.environ['HTTP_HOST']
-        
+
     def GET_index(self):
         self.header("content-type", "text/html")
         return [HEADER]
         #yield "<h1>Wayback Machine Prototype</h1>"
-        
+
     def GET_get(self):
         fs = cgi.FieldStorage(environ=self.environ, keep_blank_values=1)
         if 'url' in fs:
@@ -47,34 +52,51 @@ class application(wsgiapp):
             self.status = "302 See Other"
             self.header("Location", self.home + "/")
             return [""]
-            
+
     def GET_web(self, url):
         qs = self.environ.get("QUERY_STRING", "")
         if qs:
             url = url + "?" + qs
         record = self.fetch_arc_record(url)
-        
+
         # fake socket to pass to httplib
         f = StringIO(record.payload)
         f.makefile = lambda *a: f
-        
+
         response = httplib.HTTPResponse(f)
         response.begin()
         h = dict(response.getheaders())
-        
+
         content_type = h.get("content-type", "text/plain")
         self.header("Content-Type", content_type)
 
         if 'content-length' in h:
             self.header('Content-Length', h['content-length'])
-            
+
         content = response.read()
-        
         if content_type.lower().startswith("text/html"):
             content = self.rewrite_page(url, content)
             self.header('Content-Length', str(len(content)))
-        
+        elif content_type.lower().startswith("text/css"):
+            content = self.rewrite_css(url, content)
+            self.header('Content-Length', str(len(content)))
         return [content]
+
+    def rewrite_css(self, base_url, content):
+        #base_url = base_url.replace(os.path.basename(base_url), '')
+        for image_url in re.findall('url\(([^\)]+)', content):
+            image_url = image_url.replace('"', '')
+            image_url = image_url.replace("'", '')
+            if not image_url.startswith('http://'):
+                new_url = urlparse.urljoin(base_url, image_url)
+            else:
+                new_url = image_url
+            new_url = new_url.replace('//', '/')
+            url2 = urlparse.urljoin(base_url, new_url)
+            url2 = self.home + "/web/" + url2
+            logger.debug("rewrote %r => %r" % (image_url, url2))
+            content = content.replace(image_url, url2, 1)
+        return content
 
     def fetch_arc_record(self, url):
         """Fetchs the ARC record data from liveweb proxy.
@@ -84,13 +106,13 @@ class application(wsgiapp):
         content = conn.getresponse().read()
 
         gz = gzip.GzipFile(fileobj=StringIO(content), mode="rb")
-        record = warc.ARCRecord.from_string(gz.read(), version = 1)
+        record = warc.ARCRecord.from_string(gz.read(), version=1)
 
         return record
-        
+
     def rewrite_page(self, base_url, content):
         """Rewrites all the links the the HTML."""
-        
+
         soup = BeautifulSoup(content)
         for tag in soup.findAll(["a", "link", "img", "script", "form"]):
             if tag.has_key('href'):
@@ -99,24 +121,24 @@ class application(wsgiapp):
                 tag['src'] = self.rewrite_url(base_url, tag['src'])
             elif tag.has_key("action"):
                 tag['action'] = self.rewrite_url(base_url, tag['action'])
-        
+
         self.inject_header(base_url, soup)
         return str(soup)
-        
+
     def inject_header(self, base_url, soup):
         """Injects wayback machine header into the web page."""
         header_soup = BeautifulSoup(HEADER).find("div")
         header_soup.find("input", {"id": "wmtbURL"})['value'] = base_url
         soup.find("body").insert(0, header_soup)
-                
+
     def rewrite_url(self, base_url, url):
         if url.strip().lower().startswith("javascript"):
             return url
         url2 = urlparse.urljoin(base_url, url)
         url2 = self.home + "/web/" + url2
-        print "rewrote %r => %r" % (url, url2)
+        logger.debug("rewrote %r => %r" % (url, url2))
         return url2
-        
+
 
 HEADER = """
 <div id="wm-ipp" style="position: relative; padding-top: 0px; padding-right: 5px; padding-bottom: 0px; padding-left: 5px; min-height: 70px; min-width: 800px; z-index: 9000; display: block; ">
