@@ -19,15 +19,18 @@ liveweb = sys.argv[1]
 import logging
 import os
 import tinycss
+from lxml import html
+import re
 
 logging.basicConfig(level=logging.DEBUG)
 #useful for debugging
-_REMOVE_BANNER = False
+_REMOVE_BANNER = True
 
 
 class application(wsgiapp):
     """WSGI application for wayback machine prototype.
     """
+    charset = None
     urls = [
         ("/", "index"),
         ("/get", "get"),
@@ -59,6 +62,9 @@ class application(wsgiapp):
         qs = self.environ.get("QUERY_STRING", "")
         if qs:
             url = url + "?" + qs
+            #    print url
+        url = re.sub('\s', '%20', url)
+        #print url
         record = self.fetch_arc_record(url)
 
         # fake socket to pass to httplib
@@ -70,19 +76,30 @@ class application(wsgiapp):
         h = dict(response.getheaders())
 
         content_type = h.get("content-type", "text/plain")
-        self.header("Content-Type", content_type)
+        if ';' in content_type:
+            self.charset = content_type.split(';')[1].split('=')[1]
+            self.charset = self.charset.lower()
 
         if 'content-length' in h:
             self.header('Content-Length', h['content-length'])
 
         content = response.read()
+        append_line = self.home + "/web/"
         if content_type.lower().startswith("text/html"):
-            content = self.rewrite_page(url, content)
+            if self.charset:
+                content = content.decode(self.charset, "utf-8")
+            content = self.rewrite_page(url, content, append_line)
             self.header('Content-Length', str(len(content)))
+            self.header("Content-Type", "text/html; charset=utf-8")
+
         elif content_type.lower().startswith("text/css"):
-            append_line = self.home + "/web/"
+            if self.charset:
+                content = content.decode(self.charset, "utf-8")
             content = self.rewrite_css(base_url=url, css=content, append_line=append_line)
             self.header('Content-Length', str(len(content)))
+            self.header("Content-Type", "text/css; charset=utf-8")
+            #print [content]
+        #sys.exit()
         return [content]
 
     def rewrite_css(self, base_url, css, append_line=None):
@@ -96,18 +113,22 @@ class application(wsgiapp):
                     logging.debug("Found import rule in css %s" % rule.uri)
                     if not rule.uri.startswith('http://') or rule.uri.startswith('https://'):
                         url2 = _css_base_url + rule.uri
-                        if append_line:
-                            url2 = append_line + url2
-                        css_columns[rule.line - 1] = css_columns[rule.line - 1].replace(rule.uri, url2)
-                        logging.debug("rewrote %r => %r at line %s" % (rule.uri, url2, rule.line))
-                        count_replaced += 1
+                    else:
+                        url2 = tok.value
+                    if append_line:
+                        url2 = append_line + url2
+                    css_columns[rule.line - 1] = css_columns[rule.line - 1].replace(rule.uri, url2)
+                    logging.debug("rewrote %r => %r at line %s" % (rule.uri, url2, rule.line))
+                    count_replaced += 1
             elif hasattr(rule, 'declarations'):
                 for declaration in rule.declarations:
                     for tok in declaration.value:
-                        if tok.type == 'URI':
+                        if tok.type == 'URI' and not tok.value.startswith("data:image"):
                             logging.debug("Found uri rule in css %s" % tok.value)
                             if not tok.value.startswith('http://') or tok.value.startswith('https://'):
                                 url2 = urlparse.urljoin(base_url, tok.value)
+                            else:
+                                url2 = tok.value
                             if append_line:
                                 url2 = append_line + url2
                             css_columns[tok.line - 1] = css_columns[tok.line - 1].replace(tok.value, url2)
@@ -123,23 +144,85 @@ class application(wsgiapp):
         conn = httplib.HTTPConnection(liveweb)
         conn.request("GET", url)
         content = conn.getresponse().read()
-
+        #print content
         gz = gzip.GzipFile(fileobj=StringIO(content), mode="rb")
+        #gz.read()
+        #sys.exit()
+        #print gz.read()
+        #record = warc.ARCRecord.from_string(gz.read(), version=1)
         record = warc.ARCRecord.from_string(gz.read(), version=1)
 
         return record
 
-    def rewrite_page(self, base_url, content):
-        """Rewrites all the links the the HTML."""
+    def rewrite_page(self, base_url, content, append_line=None):
+        #print  append_line
+        #sys.exit()
+        parsed = urlparse.urlparse(base_url)
+        elem = html.fromstring(content, base_url=base_url)
+        tags = [
+            {"//a": "href"},
+            {"//link": "href"},
+            #link type="text/css" href
+            #{'//link': "href"},
+            {"//img": "src"},
+            {"//script": "src"},
+            {"//form": "action"},
+            {"//iframe": "src"},
+        ]
+        for tag in tags:
+            parameter = tag.keys()[0]
+            value = tag.values()[0]
+            #print parameter, value
+            for e in elem.xpath(parameter):
+                #print e
+                parameter_value = e.get(value)
+                if not parameter_value:
+                    #print html.tostring(e)
+                    continue
+                if parameter_value.startswith('javascript:'):
+                    continue
+                if parameter_value.startswith('//'):
+                    parameter_value = re.sub('^//', '', parameter_value)
+                    parameter_value = "%s://%s" % (parsed.scheme, parameter_value)
+                if not parameter_value.startswith('http://') or parameter_value.startswith('https://'):
+                    parameter_value = urlparse.urljoin(base_url, parameter_value)
+                if append_line:
+                    parameter_value = append_line + parameter_value
+                e.set(value, parameter_value)
+        for e in elem.xpath('//meta'):
+            parameter_value = e.get('content')
+            if parameter_value:
+                if "charset=" in parameter_value:
+                    e.set('content', "text/html; charset=utf-8")
+            elif not parameter_value:
+                parameter_value = e.get('charset')
+                #print parameter_value
+                if parameter_value:
+                    e.set('charset', "utf-8")
 
+        return html.tostring(elem, encoding="utf-8")
+
+    def _rewrite_page(self, base_url, content):
+        """Rewrites all the links the the HTML."""
+        BeautifulSoup.QUOTE_TAGS = {}
+        #SELF_CLOSING_TAGS = {} NESTABLE_TAGS = {} QUOTE_TAGS = {}
         soup = BeautifulSoup(content)
-        for tag in soup.findAll(["a", "link", "img", "script", "form"]):
+        for tag in soup.findAll(["a", "link", "img", "script", "form", "iframe"]):
             if tag.has_key('href'):
                 tag['href'] = self.rewrite_url(base_url, tag['href'])
             elif tag.has_key("src"):
                 tag['src'] = self.rewrite_url(base_url, tag['src'])
             elif tag.has_key("action"):
                 tag['action'] = self.rewrite_url(base_url, tag['action'])
+                #<meta charset="windows-1251" />
+        for tag in soup.findAll(['meta']):
+            if tag.has_key("content"):
+                if "charset=" in tag['content']:
+                    tag['content'] = "text/html; charset=utf-8"
+            if tag.has_key("charset"):
+                print tag['charset']
+                tag['charset'] = "utf-8"
+                print tag['charset']
 
         self.inject_header(base_url, soup)
         return str(soup)
