@@ -8,3 +8,4 @@ redis==2.4.12
 uWSGI==1.9.14
 warc
 wsgiref==0.1.2
+tinycss
