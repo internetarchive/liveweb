@@ -29,7 +29,7 @@ or, with `easy_install <http://pypi.python.org/pypi/setuptools>`_ ::
 
     $ easy_install liveweb
 
-See `Development Setup <devsetup>`_ if you want to work with source code.
+See :ref:`Development Setup <devsetup>`_ if you want to work with source code.
 
 Running liveweb-proxy
 ---------------------
@@ -50,7 +50,7 @@ To see the available command-line options::
 
      $ liveweb-proxy --help
 
-See :ref:`Configuration <config>` section for the available config settings and command line options.
+See :ref:`Configuration <config>`_ section for the available config settings and command line options.
 
 Advanced Usage
 --------------
