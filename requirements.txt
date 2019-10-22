@@ -1,6 +1,6 @@
 BeautifulSoup==3.2.1
 Genshi==0.6
-PyYAML==3.10
+PyYAML==5.1
 hiredis==0.1.1
 py==1.4.7
 pytest==2.2.3
