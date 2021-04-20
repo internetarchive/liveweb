@@ -2,7 +2,7 @@ BeautifulSoup==3.2.1
 Genshi==0.6
 PyYAML==3.10
 hiredis==0.1.1
-py==1.4.7
+py==1.10.0
 pytest==2.2.3
 redis==2.4.12
 uWSGI==1.9.14
